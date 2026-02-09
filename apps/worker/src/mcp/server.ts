@@ -41,7 +41,7 @@ mcp.post("/mcp", async (c) => {
             name: "thehumansoup",
             version: "0.1.0",
           },
-        })
+        }),
       );
 
     case "notifications/initialized":
@@ -52,12 +52,16 @@ mcp.post("/mcp", async (c) => {
       return c.json(
         jsonRpcResult(id, {
           tools: TOOLS,
-        })
+        }),
       );
 
     case "tools/call": {
-      const toolName = (params as { name: string; arguments?: Record<string, unknown> })?.name;
-      const toolArgs = (params as { name: string; arguments?: Record<string, unknown> })?.arguments ?? {};
+      const toolName = (
+        params as { name: string; arguments?: Record<string, unknown> }
+      )?.name;
+      const toolArgs =
+        (params as { name: string; arguments?: Record<string, unknown> })
+          ?.arguments ?? {};
 
       if (!toolName) {
         return c.json(jsonRpcError(id, -32602, "Missing tool name"));
@@ -72,7 +76,8 @@ mcp.post("/mcp", async (c) => {
         const result = await handleTool(c.env.DB, toolName, toolArgs);
         return c.json(jsonRpcResult(id, result));
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Tool execution failed";
+        const message =
+          error instanceof Error ? error.message : "Tool execution failed";
         return c.json(jsonRpcError(id, -32603, message));
       }
     }
@@ -91,7 +96,8 @@ mcp.get("/mcp", (c) => {
   return c.json({
     name: "thehumansoup",
     version: "0.1.0",
-    description: "The Human Soup - AI-traversable content index for the me3 ecosystem",
+    description:
+      "The Human Soup - AI-traversable content index for the me3 ecosystem",
     tools: TOOLS.map((t) => ({ name: t.name, description: t.description })),
   });
 });
@@ -112,7 +118,7 @@ function jsonRpcResult(id: string | number | null, result: unknown) {
 function jsonRpcError(
   id: string | number | null,
   code: number,
-  message: string
+  message: string,
 ) {
   return { jsonrpc: "2.0", id, error: { code, message } };
 }

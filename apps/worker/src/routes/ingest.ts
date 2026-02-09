@@ -65,7 +65,7 @@ ingest.post("/ingest/subscribe", async (c) => {
 
   // Find the creator
   const creator = await c.env.DB.prepare(
-    "SELECT id FROM creators WHERE site_url = ?"
+    "SELECT id FROM creators WHERE site_url = ?",
   )
     .bind(creatorSiteUrl)
     .first<{ id: string }>();
@@ -81,7 +81,7 @@ ingest.post("/ingest/subscribe", async (c) => {
   if (body.subscriber_site_url) {
     // Subscriber is a known me3 creator
     const subscriber = await c.env.DB.prepare(
-      "SELECT id FROM creators WHERE site_url = ?"
+      "SELECT id FROM creators WHERE site_url = ?",
     )
       .bind(normalizeUrl(body.subscriber_site_url))
       .first<{ id: string }>();
@@ -94,8 +94,11 @@ ingest.post("/ingest/subscribe", async (c) => {
 
   if (!subscriberId && !subscriberEmailHash) {
     return c.json(
-      { error: "Either subscriber_email_hash or subscriber_site_url is required" },
-      400
+      {
+        error:
+          "Either subscriber_email_hash or subscriber_site_url is required",
+      },
+      400,
     );
   }
 
@@ -105,14 +108,14 @@ ingest.post("/ingest/subscribe", async (c) => {
      VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(subscriber_email_hash, creator_id) DO UPDATE SET
        subscriber_id = COALESCE(excluded.subscriber_id, subscriptions.subscriber_id),
-       unsubscribed_at = NULL`
+       unsubscribed_at = NULL`,
   )
     .bind(
       uuid(),
       subscriberId,
       subscriberEmailHash,
       creator.id,
-      body.source ?? "newsletter_block"
+      body.source ?? "newsletter_block",
     )
     .run();
 
@@ -147,7 +150,7 @@ ingest.post("/ingest/register", async (c) => {
         error: "Failed to index site",
         detail: result.error,
       },
-      422
+      422,
     );
   }
 

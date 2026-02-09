@@ -123,7 +123,7 @@ export const TOOLS = [
 export async function handleTool(
   db: D1Database,
   name: string,
-  args: Record<string, unknown>
+  args: Record<string, unknown>,
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
   switch (name) {
     case "soup_discover": {
@@ -135,7 +135,9 @@ export async function handleTool(
 
       if (searchType === "creators") {
         const creators = await getCreators(db, { topic, limit });
-        return text(JSON.stringify({ creators, count: creators.length }, null, 2));
+        return text(
+          JSON.stringify({ creators, count: creators.length }, null, 2),
+        );
       } else {
         const content = await getContent(db, {
           topic,
@@ -143,7 +145,9 @@ export async function handleTool(
           since,
           limit,
         });
-        return text(JSON.stringify({ content, count: content.length }, null, 2));
+        return text(
+          JSON.stringify({ content, count: content.length }, null, 2),
+        );
       }
     }
 
@@ -183,8 +187,8 @@ export async function handleTool(
   }
 }
 
-function text(
-  content: string
-): { content: Array<{ type: "text"; text: string }> } {
+function text(content: string): {
+  content: Array<{ type: "text"; text: string }>;
+} {
   return { content: [{ type: "text", text: content }] };
 }

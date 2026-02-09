@@ -6,7 +6,12 @@
 
 import { Hono } from "hono";
 import type { Env } from "../lib/types";
-import { getCreatorById, getCreatorBySiteUrl, getContentByCreator } from "../services/graph";
+import {
+  getCreatorById,
+  getCreatorBySiteUrl,
+  getContentByCreator,
+} from "../services/graph";
+import { normalizeUrl } from "../lib/me3";
 
 const profile = new Hono<{ Bindings: Env }>();
 
@@ -40,7 +45,8 @@ profile.get("/profile/by-url", async (c) => {
     return c.json({ error: "url query parameter is required" }, 400);
   }
 
-  const creator = await getCreatorBySiteUrl(c.env.DB, url);
+  const siteUrl = normalizeUrl(url);
+  const creator = await getCreatorBySiteUrl(c.env.DB, siteUrl);
   if (!creator) {
     return c.json({ error: "Creator not found" }, 404);
   }

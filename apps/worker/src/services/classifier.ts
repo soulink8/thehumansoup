@@ -12,7 +12,7 @@
  */
 export function classifyTopics(
   title: string,
-  excerpt?: string | null
+  excerpt?: string | null,
 ): string[] {
   const text = `${title} ${excerpt ?? ""}`.toLowerCase();
   const matched: string[] = [];
@@ -32,7 +32,7 @@ export function classifyTopics(
  */
 export function inferContentType(
   _title: string,
-  _filePath?: string | null
+  _filePath?: string | null,
 ): string {
   // Future: inspect file extension, media URLs, etc.
   // For now, everything from me3 posts is an article
@@ -42,18 +42,87 @@ export function inferContentType(
 // ── Topic Keywords (Phase 1: Simple matching) ──────────────
 
 const TOPIC_KEYWORDS: Record<string, string[]> = {
-  ai: ["ai", "artificial intelligence", "machine learning", "llm", "gpt", "claude", "neural"],
-  startups: ["startup", "founder", "bootstrapped", "indie", "saas", "mvp", "launch"],
-  "web-dev": ["javascript", "typescript", "react", "vue", "nextjs", "node", "web dev", "frontend", "backend", "fullstack"],
+  ai: [
+    "ai",
+    "artificial intelligence",
+    "machine learning",
+    "llm",
+    "gpt",
+    "claude",
+    "neural",
+  ],
+  startups: [
+    "startup",
+    "founder",
+    "bootstrapped",
+    "indie",
+    "saas",
+    "mvp",
+    "launch",
+  ],
+  "web-dev": [
+    "javascript",
+    "typescript",
+    "react",
+    "vue",
+    "nextjs",
+    "node",
+    "web dev",
+    "frontend",
+    "backend",
+    "fullstack",
+  ],
   design: ["design", "ui", "ux", "figma", "typography", "branding", "visual"],
-  marketing: ["marketing", "seo", "growth", "content marketing", "copywriting", "conversion"],
-  crypto: ["crypto", "blockchain", "web3", "ethereum", "bitcoin", "defi", "nft"],
-  productivity: ["productivity", "workflow", "habits", "systems", "notion", "obsidian"],
-  writing: ["writing", "blogging", "newsletter", "essay", "storytelling", "prose"],
+  marketing: [
+    "marketing",
+    "seo",
+    "growth",
+    "content marketing",
+    "copywriting",
+    "conversion",
+  ],
+  crypto: [
+    "crypto",
+    "blockchain",
+    "web3",
+    "ethereum",
+    "bitcoin",
+    "defi",
+    "nft",
+  ],
+  productivity: [
+    "productivity",
+    "workflow",
+    "habits",
+    "systems",
+    "notion",
+    "obsidian",
+  ],
+  writing: [
+    "writing",
+    "blogging",
+    "newsletter",
+    "essay",
+    "storytelling",
+    "prose",
+  ],
   career: ["career", "job", "interview", "resume", "remote work", "freelance"],
-  health: ["health", "fitness", "mental health", "wellness", "meditation", "exercise"],
+  health: [
+    "health",
+    "fitness",
+    "mental health",
+    "wellness",
+    "meditation",
+    "exercise",
+  ],
   finance: ["finance", "investing", "money", "budget", "financial", "stocks"],
   cloudflare: ["cloudflare", "workers", "d1", "r2", "pages", "wrangler"],
   open_source: ["open source", "open-source", "oss", "github", "contribution"],
-  community: ["community", "meetup", "conference", "networking", "collaboration"],
+  community: [
+    "community",
+    "meetup",
+    "conference",
+    "networking",
+    "collaboration",
+  ],
 };

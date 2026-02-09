@@ -7,7 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "soup-db"
-database_id = "TODO-create-d1-database"
+database_id = "dcc77fc4-683f-439e-9fce-62a477bbb86f"
 
 # ── Cron Triggers ───────────────────────────────────────────
 [triggers]

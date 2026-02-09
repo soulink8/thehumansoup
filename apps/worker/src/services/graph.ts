@@ -23,7 +23,7 @@ export async function getCreators(
     limit?: number;
     offset?: number;
     orderBy?: "trust" | "recent" | "posts";
-  } = {}
+  } = {},
 ): Promise<CreatorResponse[]> {
   const { topic, limit = 20, offset = 0, orderBy = "trust" } = options;
 
@@ -60,7 +60,7 @@ export async function getCreators(
 
 export async function getCreatorById(
   db: D1Database,
-  id: string
+  id: string,
 ): Promise<CreatorResponse | null> {
   const row = await db
     .prepare("SELECT * FROM creators WHERE id = ?")
@@ -72,7 +72,7 @@ export async function getCreatorById(
 
 export async function getCreatorBySiteUrl(
   db: D1Database,
-  siteUrl: string
+  siteUrl: string,
 ): Promise<CreatorResponse | null> {
   const row = await db
     .prepare("SELECT * FROM creators WHERE site_url = ?")
@@ -93,9 +93,16 @@ export async function getContent(
     since?: string;
     limit?: number;
     offset?: number;
-  } = {}
+  } = {},
 ): Promise<ContentResponse[]> {
-  const { creatorId, contentType, topic, since, limit = 20, offset = 0 } = options;
+  const {
+    creatorId,
+    contentType,
+    topic,
+    since,
+    limit = 20,
+    offset = 0,
+  } = options;
 
   let query = `
     SELECT c.*, cr.handle as creator_handle, cr.name as creator_name
@@ -139,7 +146,7 @@ export async function getContent(
 export async function getContentByCreator(
   db: D1Database,
   creatorId: string,
-  limit = 20
+  limit = 20,
 ): Promise<ContentResponse[]> {
   return getContent(db, { creatorId, limit });
 }
@@ -149,7 +156,7 @@ export async function getContentByCreator(
 export async function getFeed(
   db: D1Database,
   subscriberId: string,
-  options: { since?: string; limit?: number } = {}
+  options: { since?: string; limit?: number } = {},
 ): Promise<FeedResponse> {
   const { since, limit = 50 } = options;
 
@@ -210,7 +217,7 @@ export async function getFeed(
 
 export async function getTrending(
   db: D1Database,
-  options: { limit?: number; days?: number } = {}
+  options: { limit?: number; days?: number } = {},
 ): Promise<ContentResponse[]> {
   const { limit = 20, days = 7 } = options;
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -247,7 +254,7 @@ export async function getStats(db: D1Database): Promise<StatsResponse> {
         .first<{ count: number }>(),
       db
         .prepare(
-          "SELECT COUNT(*) as count FROM subscriptions WHERE unsubscribed_at IS NULL"
+          "SELECT COUNT(*) as count FROM subscriptions WHERE unsubscribed_at IS NULL",
         )
         .first<{ count: number }>(),
       db
@@ -255,7 +262,7 @@ export async function getStats(db: D1Database): Promise<StatsResponse> {
         .first<{ count: number }>(),
       db
         .prepare(
-          "SELECT crawled_at FROM crawl_log ORDER BY crawled_at DESC LIMIT 1"
+          "SELECT crawled_at FROM crawl_log ORDER BY crawled_at DESC LIMIT 1",
         )
         .first<{ crawled_at: string }>(),
     ]);
@@ -298,7 +305,7 @@ function toCreatorResponse(row: DbCreator): CreatorResponse {
 }
 
 function toContentResponse(
-  row: DbContent & { creator_handle: string; creator_name: string }
+  row: DbContent & { creator_handle: string; creator_name: string },
 ): ContentResponse {
   return {
     id: row.id,

@@ -22,7 +22,7 @@ registry.get("/subscriptions/:subscriberId", async (c) => {
      JOIN subscriptions s ON s.creator_id = cr.id
      WHERE (s.subscriber_id = ? OR s.subscriber_email_hash = ?)
        AND s.unsubscribed_at IS NULL
-     ORDER BY s.subscribed_at DESC`
+     ORDER BY s.subscribed_at DESC`,
   )
     .bind(subscriberId, subscriberId)
     .all();
@@ -47,7 +47,7 @@ registry.get("/subscribers/:creatorId", async (c) => {
   }
 
   const count = await c.env.DB.prepare(
-    "SELECT COUNT(*) as count FROM subscriptions WHERE creator_id = ? AND unsubscribed_at IS NULL"
+    "SELECT COUNT(*) as count FROM subscriptions WHERE creator_id = ? AND unsubscribed_at IS NULL",
   )
     .bind(creatorId)
     .first<{ count: number }>();

@@ -26,7 +26,7 @@ export interface IndexResult {
  */
 export async function indexSite(
   db: D1Database,
-  siteUrl: string
+  siteUrl: string,
 ): Promise<IndexResult> {
   const start = Date.now();
 
@@ -79,7 +79,7 @@ export async function indexSite(
     db,
     creatorId,
     siteUrl,
-    posts
+    posts,
   );
 
   // 6. Update post count + last published
@@ -87,12 +87,12 @@ export async function indexSite(
     .filter((p) => p.publishedAt)
     .sort(
       (a, b) =>
-        new Date(b.publishedAt!).getTime() - new Date(a.publishedAt!).getTime()
+        new Date(b.publishedAt!).getTime() - new Date(a.publishedAt!).getTime(),
     )[0]?.publishedAt;
 
   await db
     .prepare(
-      `UPDATE creators SET post_count = ?, last_published_at = ?, updated_at = datetime('now') WHERE id = ?`
+      `UPDATE creators SET post_count = ?, last_published_at = ?, updated_at = datetime('now') WHERE id = ?`,
     )
     .bind(posts.length, lastPublished ?? null, creatorId)
     .run();
@@ -100,7 +100,7 @@ export async function indexSite(
   // 7. Calculate trust score
   const subscriberCount = await db
     .prepare(
-      "SELECT COUNT(*) as count FROM subscriptions WHERE creator_id = ? AND unsubscribed_at IS NULL"
+      "SELECT COUNT(*) as count FROM subscriptions WHERE creator_id = ? AND unsubscribed_at IS NULL",
     )
     .bind(creatorId)
     .first<{ count: number }>();
@@ -113,7 +113,7 @@ export async function indexSite(
   const historyMonths = firstSeen
     ? Math.floor(
         (Date.now() - new Date(firstSeen.first_seen_at).getTime()) /
-          (1000 * 60 * 60 * 24 * 30)
+          (1000 * 60 * 60 * 24 * 30),
       )
     : 0;
 
@@ -133,14 +133,14 @@ export async function indexSite(
 
   await db
     .prepare(
-      `UPDATE creators SET trust_score = ?, trust_signals = ?, verified = ?, verified_at = ? WHERE id = ?`
+      `UPDATE creators SET trust_score = ?, trust_signals = ?, verified = ?, verified_at = ? WHERE id = ?`,
     )
     .bind(
       trustScore,
       JSON.stringify(trustSignals),
       profile.verification?.verified ? 1 : 0,
       profile.verification?.verifiedAt ?? null,
-      creatorId
+      creatorId,
     )
     .run();
 
@@ -162,7 +162,7 @@ export async function indexSite(
 export async function indexAll(db: D1Database): Promise<IndexResult[]> {
   const creators = await db
     .prepare(
-      "SELECT site_url FROM creators WHERE soup_enabled = 1 ORDER BY last_indexed_at ASC LIMIT 50"
+      "SELECT site_url FROM creators WHERE soup_enabled = 1 ORDER BY last_indexed_at ASC LIMIT 50",
     )
     .all<{ site_url: string }>();
 
@@ -187,7 +187,7 @@ async function upsertCreator(
   id: string,
   siteUrl: string,
   profile: Me3Profile,
-  hash: string
+  hash: string,
 ): Promise<void> {
   // Extract content types from posts
   const contentTypes = [...new Set((profile.posts ?? []).map(() => "article"))];
@@ -218,7 +218,7 @@ async function upsertCreator(
         subscribe_description = excluded.subscribe_description,
         subscribe_frequency = excluded.subscribe_frequency,
         last_indexed_at = datetime('now'),
-        updated_at = datetime('now')`
+        updated_at = datetime('now')`,
     )
     .bind(
       id,
@@ -235,7 +235,7 @@ async function upsertCreator(
       profile.intents?.subscribe?.enabled ? 1 : 0,
       profile.intents?.subscribe?.title ?? null,
       profile.intents?.subscribe?.description ?? null,
-      profile.intents?.subscribe?.frequency ?? null
+      profile.intents?.subscribe?.frequency ?? null,
     )
     .run();
 }
@@ -244,7 +244,7 @@ async function syncPosts(
   db: D1Database,
   creatorId: string,
   siteUrl: string,
-  posts: Me3Post[]
+  posts: Me3Post[],
 ): Promise<{ postsNew: number; postsUpdated: number }> {
   let postsNew = 0;
   let postsUpdated = 0;
@@ -254,25 +254,28 @@ async function syncPosts(
 
     const existing = await db
       .prepare(
-        "SELECT id, title, excerpt FROM content WHERE creator_id = ? AND slug = ?"
+        "SELECT id, title, excerpt FROM content WHERE creator_id = ? AND slug = ?",
       )
       .bind(creatorId, post.slug)
       .first<{ id: string; title: string; excerpt: string | null }>();
 
     if (existing) {
       // Check if anything changed
-      if (existing.title !== post.title || existing.excerpt !== (post.excerpt ?? null)) {
+      if (
+        existing.title !== post.title ||
+        existing.excerpt !== (post.excerpt ?? null)
+      ) {
         await db
           .prepare(
             `UPDATE content SET title = ?, excerpt = ?, published_at = ?, content_url = ?, updated_at = datetime('now')
-             WHERE id = ?`
+             WHERE id = ?`,
           )
           .bind(
             post.title,
             post.excerpt ?? null,
             post.publishedAt ?? null,
             contentUrl,
-            existing.id
+            existing.id,
           )
           .run();
         postsUpdated++;
@@ -283,7 +286,7 @@ async function syncPosts(
       await db
         .prepare(
           `INSERT INTO content (id, creator_id, slug, title, excerpt, content_type, file_path, content_url, published_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           contentId,
@@ -294,7 +297,7 @@ async function syncPosts(
           "article", // Default for now, protocol will add type field later
           post.file,
           contentUrl,
-          post.publishedAt ?? null
+          post.publishedAt ?? null,
         )
         .run();
       postsNew++;
@@ -307,12 +310,12 @@ async function syncPosts(
 async function logCrawl(
   db: D1Database,
   creatorId: string | null,
-  result: IndexResult
+  result: IndexResult,
 ): Promise<void> {
   await db
     .prepare(
       `INSERT INTO crawl_log (id, creator_id, site_url, status, posts_found, posts_new, posts_updated, error, duration_ms)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       uuid(),
@@ -323,7 +326,7 @@ async function logCrawl(
       result.postsNew,
       result.postsUpdated,
       result.error ?? null,
-      result.durationMs
+      result.durationMs,
     )
     .run();
 }

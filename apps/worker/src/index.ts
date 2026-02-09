@@ -40,7 +40,8 @@ app.get("/", (c) => {
       health: "GET /health",
       stats: "GET /stats",
       discover_creators: "GET /discover/creators?topic=ai&order=trust",
-      discover_content: "GET /discover/content?topic=ai&type=article&since=2026-01-01",
+      discover_content:
+        "GET /discover/content?topic=ai&type=article&since=2026-01-01",
       trending: "GET /discover/trending?days=7",
       profile: "GET /profile/:id",
       feed: "GET /feed/:subscriberId?since=2026-01-01",
@@ -72,7 +73,7 @@ export default {
   async scheduled(
     _event: ScheduledEvent,
     env: Env,
-    ctx: ExecutionContext
+    ctx: ExecutionContext,
   ): Promise<void> {
     ctx.waitUntil(runIndexer(env));
   },
@@ -90,7 +91,7 @@ async function runIndexer(env: Env): Promise<void> {
     const totalNewPosts = results.reduce((sum, r) => sum + r.postsNew, 0);
 
     console.log(
-      `[soup] Index complete in ${Date.now() - start}ms: ${succeeded} updated, ${unchanged} unchanged, ${failed} failed, ${totalNewPosts} new posts`
+      `[soup] Index complete in ${Date.now() - start}ms: ${succeeded} updated, ${unchanged} unchanged, ${failed} failed, ${totalNewPosts} new posts`,
     );
   } catch (error) {
     console.error("[soup] Index run failed:", error);
