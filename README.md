@@ -1,6 +1,6 @@
 # The Human Soup
 
-An AI-traversable content index for the [me3](https://me3.app) ecosystem.
+An AI-traversable content index for any site with a [me.json](https://me3.app/protocol).
 
 The Human Soup aggregates `me.json` profiles and content from me3 sites into a structured content graph that AI agents can swim through to discover creators, content, and subscription relationships on behalf of their humans.
 
@@ -51,19 +51,19 @@ pnpm --filter @soup/web dev
 
 ## API
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /health` | Health check |
-| `GET /stats` | Aggregate soup stats |
-| `GET /discover/creators?topic=ai` | Find creators by topic |
-| `GET /discover/content?type=article&since=2026-01-01` | Find content |
-| `GET /discover/trending?days=7` | Trending content |
-| `GET /profile/:id` | Creator profile + content |
-| `GET /feed/:subscriberId` | Personalised feed |
-| `POST /ingest/register` | Register a me3 site |
-| `POST /ingest/ping` | Notify of new content |
-| `POST /ingest/subscribe` | Register a subscription |
-| `POST /mcp` | MCP JSON-RPC endpoint |
+| Endpoint                                              | Description               |
+| ----------------------------------------------------- | ------------------------- |
+| `GET /health`                                         | Health check              |
+| `GET /stats`                                          | Aggregate soup stats      |
+| `GET /discover/creators?topic=ai`                     | Find creators by topic    |
+| `GET /discover/content?type=article&since=2026-01-01` | Find content              |
+| `GET /discover/trending?days=7`                       | Trending content          |
+| `GET /profile/:id`                                    | Creator profile + content |
+| `GET /feed/:subscriberId`                             | Personalised feed         |
+| `POST /ingest/register`                               | Register a me3 site       |
+| `POST /ingest/ping`                                   | Notify of new content     |
+| `POST /ingest/subscribe`                              | Register a subscription   |
+| `POST /mcp`                                           | MCP JSON-RPC endpoint     |
 
 ## MCP Tools
 
