@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import Typed from "typed.js";
 
 type Stats = {
   creators: number;
@@ -20,6 +21,11 @@ type ContentItem = {
   contentType: string;
   contentUrl: string | null;
   publishedAt: string | null;
+  media?: {
+    url?: string;
+    duration?: number;
+    thumbnail?: string;
+  };
 };
 
 type CreatorProfile = {
@@ -49,6 +55,8 @@ const lookupLoading = ref(false);
 const lookupError = ref<string | null>(null);
 const lookupProfile = ref<CreatorProfile | null>(null);
 const lookupContent = ref<ContentItem[]>([]);
+const typedTarget = ref<HTMLElement | null>(null);
+let typedInstance: Typed | null = null;
 
 const lastCrawlLabel = computed(() => {
   if (!stats.value?.lastCrawl) return "Not yet";
@@ -135,181 +143,70 @@ async function lookupSite() {
 
 onMounted(() => {
   loadData();
+
+  const target = typedTarget.value;
+  if (target) {
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    if (prefersReducedMotion) {
+      target.textContent = "content.";
+    } else {
+      target.textContent = "";
+      typedInstance = new Typed(target, {
+        strings: ["content.", "podcasts.", "videos.", "articles."],
+        typeSpeed: 56,
+        backSpeed: 32,
+        backDelay: 1400,
+        startDelay: 200,
+        loop: true,
+        smartBackspace: true,
+        showCursor: true,
+        cursorChar: "▍",
+      });
+    }
+  }
+});
+
+onBeforeUnmount(() => {
+  typedInstance?.destroy();
 });
 </script>
 
 <template>
   <div class="page">
-    <header class="topbar">
-      <div class="brand">
-        <span class="brand-mark">HS</span>
-        <div>
-          <p class="brand-title">The Human Soup</p>
-          <p class="brand-sub">AI-traversable creator index</p>
-        </div>
-      </div>
-      <nav class="nav">
-        <a href="#soup" class="nav-link">Live Soup</a>
-        <a href="#blog3" class="nav-link">Blog 3.0</a>
-        <a href="#lookup" class="nav-link">Look Up</a>
-        <a href="#join" class="nav-link nav-cta">Add your site</a>
-      </nav>
-    </header>
+    <div class="beta-banner">
+      <span class="beta-pill">Beta</span>
+      <span>Open index for Blog 3.0.</span>
+    </div>
 
-    <section class="hero">
-      <div class="hero-text">
-        <p class="eyebrow">Blog 3.0</p>
-        <h1>
-          A personal media node your AI can understand.
-        </h1>
-        <p class="hero-sub">
-          The Human Soup connects creator blogs into a living, open graph so
-          personal AIs can discover, filter, and deliver the signal.
-        </p>
-        <div class="hero-actions">
-          <a class="button primary" href="#soup">See what is in the soup</a>
-          <a class="button ghost" href="#join">Register your site</a>
-        </div>
-        <div class="chips">
-          <span class="chip">Own your domain</span>
-          <span class="chip">Any format</span>
-          <span class="chip">AI-readable</span>
-          <span class="chip">Open by default</span>
-        </div>
-      </div>
-      <div class="hero-visual">
-        <div class="terrain">
-          <div class="tile tile-a">
-            <span>DATA</span>
-          </div>
-          <div class="tile tile-b">
-            <span>PEOPLE</span>
-          </div>
-          <div class="tile tile-c">
-            <span>PAI</span>
-          </div>
-          <div class="tile tile-d">
-            <span>SOUP</span>
-          </div>
-          <div class="tile tile-e">
-            <span>GRAPH</span>
-          </div>
-        </div>
-        <div class="legend">
-          <div>
-            <strong>Nature x Computer</strong>
-            <p>Signal grows when creators own their roots.</p>
-          </div>
-          <div class="legend-circuit"></div>
-        </div>
-      </div>
-    </section>
-
-    <section id="soup" class="section">
-      <div class="section-title">
-        <h2>Live Soup</h2>
-        <p>Real-time pulses from the open web.</p>
-      </div>
-
-      <div class="stats-grid">
-        <div class="stat-card">
-          <p class="stat-label">Creators</p>
-          <p class="stat-value">{{ stats ? formatNumber(stats.creators) : "—" }}</p>
-          <p class="stat-note">Connected sites in the index.</p>
-        </div>
-        <div class="stat-card">
-          <p class="stat-label">Articles</p>
-          <p class="stat-value">{{ stats ? formatNumber(stats.content) : "—" }}</p>
-          <p class="stat-note">Posts indexed across formats.</p>
-        </div>
-        <div class="stat-card">
-          <p class="stat-label">Subscriptions</p>
-          <p class="stat-value">{{ stats ? formatNumber(stats.subscriptions) : "—" }}</p>
-          <p class="stat-note">Intent signals in the graph.</p>
-        </div>
-        <div class="stat-card">
-          <p class="stat-label">Last crawl</p>
-          <p class="stat-value">{{ lastCrawlLabel }}</p>
-          <p class="stat-note">Source: {{ apiLabel }}</p>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">
-          <h3>Latest content</h3>
-          <span v-if="loading" class="panel-badge">Loading</span>
-          <span v-else class="panel-badge">{{ latest.length }} items</span>
-        </div>
-        <p v-if="error" class="error">{{ error }}</p>
-        <div class="content-grid">
-          <article v-for="item in latest" :key="item.id" class="content-card">
-            <div class="content-meta">
-              <span class="content-type">{{ item.contentType }}</span>
-              <span class="content-date">{{ formatDate(item.publishedAt) }}</span>
-            </div>
-            <h4>{{ item.title }}</h4>
-            <p>{{ item.excerpt || "A fresh post in the soup." }}</p>
-            <div class="content-footer">
-              <span class="content-author">{{ item.creatorName }}</span>
-              <a
-                v-if="item.contentUrl"
-                class="content-link"
-                :href="item.contentUrl"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Open
-              </a>
-            </div>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section id="blog3" class="section split">
-      <div>
-        <p class="eyebrow">Blog 3.0</p>
-        <h2>Your personal media node on the open web.</h2>
-        <p>
-          Blog 3.0 returns publishing to the person, not the platform. It is
-          multi-format, AI-readable, and owned by the creator.
-        </p>
-      </div>
-      <div class="card-list">
-        <div class="stack-card">
-          <h4>One identity</h4>
-          <p>Publish from your own domain with a machine-readable profile.</p>
-        </div>
-        <div class="stack-card">
-          <h4>Any format</h4>
-          <p>Text, video, audio, links, events, services. All in one feed.</p>
-        </div>
-        <div class="stack-card">
-          <h4>AI-friendly</h4>
-          <p>Structured metadata lets personal AIs curate without scraping.</p>
-        </div>
-      </div>
-    </section>
-
-    <section id="lookup" class="section">
-      <div class="section-title">
-        <h2>Look up a site</h2>
-        <p>Test a me3 domain and see its indexed posts.</p>
-      </div>
-      <form class="lookup" @submit.prevent="lookupSite">
+    <section class="hero hero-centered">
+      <p class="eyebrow">The Human Soup</p>
+      <h1 class="hero-title">
+        The place agents swim for
+        <span class="typed-text" ref="typedTarget">content.</span>
+      </h1>
+      <p class="hero-sub">
+        You publish on your blog. It gets added to the soup. Agents act like chefs
+        for their humans, serving the right content, when they want it, and how
+        they want it.
+      </p>
+      <form class="lookup hero-lookup" @submit.prevent="lookupSite">
         <input
           v-model="lookupUrl"
           type="url"
-          placeholder="https://kieran.me3.app"
+          placeholder="https://you.me3.app"
           aria-label="me3 site URL"
         />
         <button class="button primary" type="submit" :disabled="lookupLoading">
-          {{ lookupLoading ? "Searching" : "Find" }}
+          {{ lookupLoading ? "Checking" : "Check your site" }}
         </button>
       </form>
+      <p class="hero-hint">Paste your me3 URL to see what the soup can read.</p>
       <p v-if="lookupError" class="error">{{ lookupError }}</p>
 
-      <div v-if="lookupProfile" class="profile-card">
+      <div v-if="lookupProfile" class="profile-card hero-result">
         <div>
           <p class="eyebrow">Creator</p>
           <h3>{{ lookupProfile.name }}</h3>
@@ -330,50 +227,140 @@ onMounted(() => {
         </div>
       </div>
 
-      <div v-if="lookupContent.length" class="content-grid">
+      <div v-if="lookupContent.length" class="content-grid hero-result-grid">
         <article v-for="item in lookupContent" :key="item.id" class="content-card">
+          <div v-if="item.media?.thumbnail" class="content-thumb">
+            <img :src="item.media.thumbnail" alt="" loading="lazy" />
+          </div>
           <div class="content-meta">
             <span class="content-type">{{ item.contentType }}</span>
             <span class="content-date">{{ formatDate(item.publishedAt) }}</span>
           </div>
           <h4>{{ item.title }}</h4>
-          <p>{{ item.excerpt || "A fresh post in the soup." }}</p>
+          <p>{{ item.excerpt || "New in the soup." }}</p>
           <div class="content-footer">
             <span class="content-author">{{ item.creatorName }}</span>
             <a
-              v-if="item.contentUrl"
+              v-if="item.contentUrl || item.media?.url"
               class="content-link"
-              :href="item.contentUrl"
+              :href="item.media?.url || item.contentUrl"
               target="_blank"
               rel="noreferrer"
             >
-              Open
+              {{ item.contentType === "video" ? "Watch" : "Open" }}
             </a>
           </div>
         </article>
       </div>
     </section>
 
-    <section id="join" class="section callout">
-      <div>
-        <h2>Bring your site into the soup.</h2>
-        <p>
-          Publish from your domain, add a `me.json`, and ping the soup when you
-          post. We will index the metadata so personal AIs can find your work.
-        </p>
+    <section id="soup" class="section">
+      <div class="section-title">
+        <h2>The Soup</h2>
+        <p>Fresh signals from real people, on their own sites.</p>
       </div>
-      <div class="callout-actions">
-        <a class="button primary" href="https://thehumansoup-worker.kieranbutler.workers.dev/health" target="_blank" rel="noreferrer">
-          Check API health
-        </a>
-        <a class="button ghost" href="#lookup">Try a site lookup</a>
+
+      <div class="soup-cauldron">
+        <div class="soup-bubbles" aria-hidden="true">
+          <span class="soup-bubble" style="--x: 12%; --y: 72%; --d: 8s;">me.json</span>
+          <span class="soup-bubble" style="--x: 28%; --y: 40%; --d: 6.5s;">me.json</span>
+          <span class="soup-bubble" style="--x: 48%; --y: 65%; --d: 7.2s;">me.json</span>
+          <span class="soup-bubble" style="--x: 64%; --y: 35%; --d: 5.8s;">me.json</span>
+          <span class="soup-bubble" style="--x: 78%; --y: 70%; --d: 7.6s;">me.json</span>
+          <span class="soup-bubble" style="--x: 88%; --y: 48%; --d: 6.9s;">me.json</span>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <p class="stat-label">Creators</p>
+            <p class="stat-value">{{ stats ? formatNumber(stats.creators) : "—" }}</p>
+            <p class="stat-note">Sites in the soup.</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Posts</p>
+            <p class="stat-value">{{ stats ? formatNumber(stats.content) : "—" }}</p>
+            <p class="stat-note">Across all formats.</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Subscriptions</p>
+            <p class="stat-value">{{ stats ? formatNumber(stats.subscriptions) : "—" }}</p>
+            <p class="stat-note">Who follows who.</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Last crawl</p>
+            <p class="stat-value">{{ lastCrawlLabel }}</p>
+            <p class="stat-note">Source: {{ apiLabel }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h3>Fresh additions</h3>
+          <span v-if="loading" class="panel-badge">Loading</span>
+          <span v-else class="panel-badge">{{ latest.length }} items</span>
+        </div>
+        <p v-if="error" class="error">{{ error }}</p>
+        <div class="content-grid">
+          <article v-for="item in latest" :key="item.id" class="content-card">
+            <div v-if="item.media?.thumbnail" class="content-thumb">
+              <img :src="item.media.thumbnail" alt="" loading="lazy" />
+            </div>
+            <div class="content-meta">
+              <span class="content-type">{{ item.contentType }}</span>
+              <span class="content-date">{{ formatDate(item.publishedAt) }}</span>
+            </div>
+            <h4>{{ item.title }}</h4>
+            <p>{{ item.excerpt || "New in the soup." }}</p>
+            <div class="content-footer">
+              <span class="content-author">{{ item.creatorName }}</span>
+              <a
+                v-if="item.contentUrl || item.media?.url"
+                class="content-link"
+                :href="item.media?.url || item.contentUrl"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {{ item.contentType === "video" ? "Watch" : "Open" }}
+              </a>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="blog3" class="section split">
+      <div>
+        <p class="eyebrow">Blog Wars</p>
+        <h2>Blog Wars: The return of the blogger.</h2>
+        <p>
+          Blogging started on personal sites. Platforms took it over. Blog 3.0
+          brings it back to you, with a <code>me.json</code> that AIs can read.
+        </p>
+        <p class="muted">Blog 3.0 = your personal media node on the open web.</p>
+      </div>
+      <div class="card-list">
+        <div class="stack-card">
+          <p class="stat-label">Blog 1.0 (1999–2010)</p>
+          <h4>The writing era</h4>
+          <p>Your words on your site. Text-first. You owned it.</p>
+        </div>
+        <div class="stack-card">
+          <p class="stat-label">Blog 2.0 (2010–2026)</p>
+          <h4>The platform era</h4>
+          <p>Video, audio, newsletters. Great reach, lost ownership.</p>
+        </div>
+        <div class="stack-card">
+          <p class="stat-label">Blog 3.0 (Now)</p>
+          <h4>The AI-readable era</h4>
+          <p>Any format on your domain, structured for machines.</p>
+        </div>
       </div>
     </section>
 
     <footer class="footer">
       <div>
         <p class="brand-title">The Human Soup</p>
-        <p class="muted">Open index for human-first publishing.</p>
+        <p class="muted">The Human Soup is open source.</p>
       </div>
       <div class="footer-links">
         <span>Powered by me3</span>

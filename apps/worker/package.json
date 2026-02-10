@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "hono": "^4.7.0",
-    "me3-protocol": "^2.9.0"
+    "me3-protocol": "^2.10.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250109.0",

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "pnpm --filter @soup/worker dev",
     "build": "pnpm -r build",
+    "build:web": "pnpm --filter @soup/web build",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test"

@@ -30,6 +30,25 @@ curl -X POST http://localhost:8787/ingest/register \
   -d '{"site_url": "https://kieran.me3.app"}'
 ```
 
+## Web UI (Cloudflare Pages)
+
+The UI lives in `apps/web` (Vue + Vite). Recommended Cloudflare Pages settings:
+
+- **Build command**: `pnpm --filter @soup/web build`
+- **Build output directory**: `apps/web/dist`
+
+Environment variables (Preview + Production):
+
+- `VITE_SOUP_API_URL=https://thehumansoup-worker.kieranbutler.workers.dev`
+- `PNPM_VERSION=9.0.0` (optional)
+- `NODE_VERSION=20` (optional)
+
+Local dev:
+
+```bash
+pnpm --filter @soup/web dev
+```
+
 ## API
 
 | Endpoint | Description |

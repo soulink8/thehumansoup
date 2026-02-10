@@ -251,28 +251,53 @@ async function syncPosts(
 
   for (const post of posts) {
     const contentUrl = buildContentUrl(siteUrl, post.slug);
+    const contentType = (post as any).type ?? "article";
+    const media = (post as any).media ?? {};
+    const mediaUrl = typeof media.url === "string" ? media.url : null;
+    const mediaDuration =
+      typeof media.duration === "number" ? media.duration : null;
+    const mediaThumbnail =
+      typeof media.thumbnail === "string" ? media.thumbnail : null;
 
     const existing = await db
       .prepare(
-        "SELECT id, title, excerpt FROM content WHERE creator_id = ? AND slug = ?",
+        "SELECT id, title, excerpt, content_type, media_url, media_duration, media_thumbnail, published_at FROM content WHERE creator_id = ? AND slug = ?",
       )
       .bind(creatorId, post.slug)
-      .first<{ id: string; title: string; excerpt: string | null }>();
+      .first<{
+        id: string;
+        title: string;
+        excerpt: string | null;
+        content_type: string | null;
+        media_url: string | null;
+        media_duration: number | null;
+        media_thumbnail: string | null;
+        published_at: string | null;
+      }>();
 
     if (existing) {
       // Check if anything changed
       if (
         existing.title !== post.title ||
-        existing.excerpt !== (post.excerpt ?? null)
+        existing.excerpt !== (post.excerpt ?? null) ||
+        existing.content_type !== contentType ||
+        existing.media_url !== mediaUrl ||
+        existing.media_duration !== mediaDuration ||
+        existing.media_thumbnail !== mediaThumbnail ||
+        existing.published_at !== (post.publishedAt ?? null)
       ) {
         await db
           .prepare(
-            `UPDATE content SET title = ?, excerpt = ?, published_at = ?, content_url = ?, updated_at = datetime('now')
+            `UPDATE content SET title = ?, excerpt = ?, content_type = ?, media_url = ?, media_duration = ?, media_thumbnail = ?, published_at = ?, content_url = ?, updated_at = datetime('now')
              WHERE id = ?`,
           )
           .bind(
             post.title,
             post.excerpt ?? null,
+            contentType,
+            mediaUrl,
+            mediaDuration,
+            mediaThumbnail,
             post.publishedAt ?? null,
             contentUrl,
             existing.id,
@@ -285,8 +310,8 @@ async function syncPosts(
       const contentId = uuid();
       await db
         .prepare(
-          `INSERT INTO content (id, creator_id, slug, title, excerpt, content_type, file_path, content_url, published_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO content (id, creator_id, slug, title, excerpt, content_type, file_path, content_url, published_at, media_url, media_duration, media_thumbnail)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           contentId,
@@ -294,10 +319,13 @@ async function syncPosts(
           post.slug,
           post.title,
           post.excerpt ?? null,
-          "article", // Default for now, protocol will add type field later
+          contentType,
           post.file,
           contentUrl,
           post.publishedAt ?? null,
+          mediaUrl,
+          mediaDuration,
+          mediaThumbnail,
         )
         .run();
       postsNew++;

@@ -10,6 +10,9 @@ importers:
 
   apps/web:
     dependencies:
+      typed.js:
+        specifier: ^3.0.0
+        version: 3.0.0
       vue:
         specifier: ^3.4.38
         version: 3.5.28(typescript@5.9.3)
@@ -1006,6 +1009,9 @@ packages:
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
+  typed.js@3.0.0:
+    resolution: {integrity: sha512-X4pjf0E7riZBo6j3NS21/7cJJ20osSOtD1OxlRoKfFU3GsdPuSpWlFcIKWf0k8uoKwBBrPuHGx+fKeU6GzRcKg==}
+
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
     engines: {node: '>=14.17'}
@@ -1928,6 +1934,8 @@ snapshots:
 
   tslib@2.8.1:
     optional: true
+
+  typed.js@3.0.0: {}
 
   typescript@5.9.3: {}
 
