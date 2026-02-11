@@ -60,6 +60,14 @@ const selectedPreview = computed(() =>
   })),
 );
 
+function domainFromUrl(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
 async function discoverSources() {
   if (!searchQuery.value.trim()) return;
   error.value = null;

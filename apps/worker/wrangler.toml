@@ -12,8 +12,3 @@ database_id = "dcc77fc4-683f-439e-9fce-62a477bbb86f"
 # ── Cron Triggers ───────────────────────────────────────────
 [triggers]
 crons = ["*/15 * * * *"]  # Index every 15 minutes
-
-# ── Environment Variables ───────────────────────────────────
-[vars]
-ENVIRONMENT = "development"
-SOUP_OWNER_SITE_URL = "https://kieran.me3.app"
