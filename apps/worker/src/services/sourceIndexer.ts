@@ -1,7 +1,7 @@
 import type { DemoSource, DemoSourceSet } from "../sources/demoSources";
 import { DEMO_SOURCES } from "../sources/demoSources";
 import { parseFeed } from "./rss";
-import type { ParsedFeed } from "./rss";
+import type { ParsedFeed, ParsedFeedItem } from "./rss";
 import { hashEmail, normalizeUrl, uuid } from "../lib/me3";
 import { listSoupSourcesByHandle } from "./soupStore";
 
@@ -11,6 +11,8 @@ export interface IndexSourcesResult {
   itemsIndexed: number;
   creatorIds: string[];
 }
+
+const MIN_LONG_FORM_VIDEO_SECONDS = 180;
 
 export function getDemoSourceSet(handle: string): DemoSourceSet | null {
   return DEMO_SOURCES[handle] ?? null;
@@ -144,16 +146,27 @@ async function indexFeed(
 
   for (const item of items) {
     const slug = await buildItemSlug(item.id, item.title, item.link);
+
+    if (source.type === "video" && shouldSkipYouTubeShort(source.feedUrl, item)) {
+      await db
+        .prepare("DELETE FROM content WHERE creator_id = ? AND slug = ?")
+        .bind(creatorId, slug)
+        .run();
+      continue;
+    }
+
     const publishedAt = toIsoDate(item.published);
     const excerpt = buildExcerpt(item.description);
     const contentUrl = item.link ?? null;
+    const thumbnailUrl =
+      item.thumbnail ?? (isLikelyImageUrl(item.enclosureUrl) ? item.enclosureUrl : undefined);
 
     const mediaUrl =
       source.type === "audio"
         ? item.enclosureUrl ?? item.link ?? null
         : source.type === "video"
         ? item.link ?? item.enclosureUrl ?? null
-        : item.enclosureUrl ?? null;
+        : null;
 
     const existing = await db
       .prepare(
@@ -176,7 +189,7 @@ async function indexFeed(
         existing.excerpt !== excerpt ||
         existing.content_type !== source.type ||
         existing.media_url !== mediaUrl ||
-        existing.media_thumbnail !== (item.thumbnail ?? null) ||
+        existing.media_thumbnail !== (thumbnailUrl ?? null) ||
         existing.published_at !== publishedAt
       ) {
         await db
@@ -190,7 +203,7 @@ async function indexFeed(
             excerpt,
             source.type,
             mediaUrl,
-            item.thumbnail ?? null,
+            thumbnailUrl ?? null,
             publishedAt,
             contentUrl,
             existing.id,
@@ -216,7 +229,7 @@ async function indexFeed(
           contentUrl,
           publishedAt,
           mediaUrl,
-          item.thumbnail ?? null,
+          thumbnailUrl ?? null,
         )
         .run();
       itemsIndexed++;
@@ -225,6 +238,28 @@ async function indexFeed(
 
   await updateCreatorStats(db, creatorId);
   return { creatorId, itemsIndexed };
+}
+
+export function shouldSkipYouTubeShort(
+  sourceFeedUrl: string,
+  item: ParsedFeedItem,
+): boolean {
+  if (!isYouTubeFeedUrl(sourceFeedUrl)) return false;
+
+  if (
+    typeof item.durationSeconds === "number" &&
+    item.durationSeconds > 0 &&
+    item.durationSeconds < MIN_LONG_FORM_VIDEO_SECONDS
+  ) {
+    return true;
+  }
+
+  const markerText = [item.title, item.description, item.link]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return markerText.includes("#shorts") || markerText.includes("/shorts/");
 }
 
 async function upsertSourceCreator(
@@ -340,5 +375,27 @@ function hostFromUrl(url: string): string | null {
     return new URL(url).hostname.replace(/^www\./, "");
   } catch {
     return null;
+  }
+}
+
+function isYouTubeFeedUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      (url.hostname === "youtube.com" || url.hostname === "www.youtube.com") &&
+      url.pathname === "/feeds/videos.xml"
+    );
+  } catch {
+    return value.includes("youtube.com/feeds/videos.xml");
+  }
+}
+
+function isLikelyImageUrl(value?: string): boolean {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(url.pathname);
+  } catch {
+    return /\.(avif|gif|jpe?g|png|svg|webp)(\?.*)?$/i.test(value);
   }
 }

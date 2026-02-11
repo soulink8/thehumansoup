@@ -8,6 +8,7 @@ export interface ParsedFeedItem {
   description?: string;
   enclosureUrl?: string;
   thumbnail?: string;
+  durationSeconds?: number;
 }
 
 export interface ParsedFeed {
@@ -67,6 +68,7 @@ function normalizeRssItem(item: any): ParsedFeedItem {
   const guid = toText(item.guid);
   const ytId = toText(item["yt:videoId"]);
   const id = ytId ?? guid ?? link ?? toText(item.title) ?? "unknown";
+  const enclosureUrl = extractEnclosureUrl(item.enclosure);
 
   return {
     id,
@@ -77,14 +79,19 @@ function normalizeRssItem(item: any): ParsedFeedItem {
       toText(item["content:encoded"]) ??
       toText(item.description) ??
       toText(item.summary),
-    enclosureUrl: extractEnclosureUrl(item.enclosure),
-    thumbnail: extractThumbnail(item),
+    enclosureUrl,
+    thumbnail:
+      extractThumbnail(item) ??
+      (isLikelyImageUrl(enclosureUrl) ? enclosureUrl : undefined),
+    durationSeconds: extractDurationSeconds(item),
   };
 }
 
 function normalizeAtomEntry(entry: any): ParsedFeedItem {
   const link = extractAtomLink(entry.link);
   const id = toText(entry.id) ?? link ?? toText(entry.title) ?? "unknown";
+  const enclosureUrl = extractAtomEnclosure(entry.link);
+  const enclosureImage = extractAtomImage(entry.link);
 
   return {
     id,
@@ -92,8 +99,12 @@ function normalizeAtomEntry(entry: any): ParsedFeedItem {
     link,
     published: toText(entry.published) ?? toText(entry.updated),
     description: toText(entry.summary) ?? toText(entry.content),
-    enclosureUrl: extractAtomEnclosure(entry.link),
-    thumbnail: extractThumbnail(entry),
+    enclosureUrl,
+    thumbnail:
+      extractThumbnail(entry) ??
+      enclosureImage ??
+      (isLikelyImageUrl(enclosureUrl) ? enclosureUrl : undefined),
+    durationSeconds: extractDurationSeconds(entry),
   };
 }
 
@@ -139,6 +150,17 @@ function extractAtomEnclosure(value: unknown): string | undefined {
   return enclosure ? extractLink(enclosure) : undefined;
 }
 
+function extractAtomImage(value: unknown): string | undefined {
+  if (!value) return undefined;
+  const links = normalizeArray(value as any);
+  const imageLink = links.find((link) => {
+    const rel = toText((link as any)?.["@_rel"])?.toLowerCase() ?? "";
+    const type = toText((link as any)?.["@_type"])?.toLowerCase() ?? "";
+    return rel === "enclosure" && type.startsWith("image/");
+  });
+  return imageLink ? extractLink(imageLink) : undefined;
+}
+
 function extractEnclosureUrl(enclosure: unknown): string | undefined {
   if (!enclosure) return undefined;
   if (Array.isArray(enclosure)) return extractEnclosureUrl(enclosure[0]);
@@ -151,13 +173,30 @@ function extractEnclosureUrl(enclosure: unknown): string | undefined {
 function extractThumbnail(item: any): string | undefined {
   const mediaThumb = item?.["media:thumbnail"];
   const mediaGroup = item?.["media:group"]?.["media:thumbnail"];
+  const mediaContent = item?.["media:group"]?.["media:content"] ?? item?.["media:content"];
   const itunesImage = item?.["itunes:image"] ?? item?.["itunes:img"];
 
   return (
     extractMediaUrl(mediaThumb) ??
     extractMediaUrl(mediaGroup) ??
+    extractImageMediaUrl(mediaContent) ??
     extractMediaUrl(itunesImage)
   );
+}
+
+function extractImageMediaUrl(value: unknown): string | undefined {
+  if (!value) return undefined;
+  const entries = normalizeArray(value as any);
+  for (const entry of entries) {
+    const type = toText((entry as any)?.["@_type"])?.toLowerCase() ?? "";
+    const medium = toText((entry as any)?.["@_medium"])?.toLowerCase() ?? "";
+    const url = extractMediaUrl(entry);
+    if (!url) continue;
+    if (type.startsWith("image/") || medium === "image" || isLikelyImageUrl(url)) {
+      return url;
+    }
+  }
+  return undefined;
 }
 
 function extractMediaUrl(value: unknown): string | undefined {
@@ -192,4 +231,75 @@ function extractItunesImage(value: unknown): string | undefined {
 
 function extractAtomLogo(feed: any): string | undefined {
   return toText(feed.logo) ?? toText(feed.icon);
+}
+
+function extractDurationSeconds(item: any): number | undefined {
+  const ytDuration = item?.["media:group"]?.["yt:duration"] ?? item?.["yt:duration"];
+  const ytSeconds = readDurationSecondsAttribute(ytDuration);
+  if (ytSeconds !== undefined) return ytSeconds;
+
+  const mediaDuration = item?.["media:group"]?.["media:content"] ?? item?.["media:content"];
+  const mediaSeconds = readDurationSecondsAttribute(mediaDuration, "duration");
+  if (mediaSeconds !== undefined) return mediaSeconds;
+
+  const itunesDuration = toText(item?.["itunes:duration"]);
+  return parseDurationSeconds(itunesDuration);
+}
+
+function readDurationSecondsAttribute(
+  value: unknown,
+  attrName = "seconds",
+): number | undefined {
+  if (!value) return undefined;
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const result = readDurationSecondsAttribute(entry, attrName);
+      if (result !== undefined) return result;
+    }
+    return undefined;
+  }
+
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  if (typeof value === "string") return parseDurationSeconds(value);
+  if (typeof value !== "object") return undefined;
+
+  const record = value as Record<string, unknown>;
+  const raw = record[`@_${attrName}`] ?? record[attrName];
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : undefined;
+  if (typeof raw === "string") return parseDurationSeconds(raw);
+
+  return undefined;
+}
+
+function parseDurationSeconds(value?: string): number | undefined {
+  if (!value) return undefined;
+
+  if (/^\d+$/.test(value)) {
+    const seconds = Number.parseInt(value, 10);
+    return Number.isFinite(seconds) ? seconds : undefined;
+  }
+
+  const parts = value.split(":").map((part) => Number.parseInt(part, 10));
+  if (parts.some((part) => Number.isNaN(part))) return undefined;
+
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+
+  return undefined;
+}
+
+function isLikelyImageUrl(value?: string): boolean {
+  if (!value) return false;
+
+  try {
+    const url = new URL(value);
+    return /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(url.pathname);
+  } catch {
+    return /\.(avif|gif|jpe?g|png|svg|webp)(\?.*)?$/i.test(value);
+  }
 }
