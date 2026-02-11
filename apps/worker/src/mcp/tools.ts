@@ -9,11 +9,15 @@ import {
   getCreators,
   getContent,
   getCreatorById,
+  getCreatorByHandle,
+  getCreatorByName,
   getContentByCreator,
   getFeed,
   getTrending,
   getStats,
 } from "../services/graph";
+import { getDemoSourceSet } from "../services/sourceIndexer";
+import { hashEmail } from "../lib/me3";
 
 // ── Tool Definitions ───────────────────────────────────────
 
@@ -108,6 +112,58 @@ export const TOOLS = [
     },
   },
   {
+    name: "soup_my_soup",
+    description:
+      "Get a personalised soup feed for a handle. Use this when a human asks for their custom soup digest.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        handle: {
+          type: "string",
+          description: "The handle to fetch (e.g. 'kieran')",
+        },
+        since: {
+          type: "string",
+          description: "ISO date - only content published after this date",
+        },
+        limit: {
+          type: "number",
+          description: "Max results to return (default 50, max 200)",
+        },
+        content_type: {
+          type: "string",
+          enum: ["article", "note", "video", "audio", "image", "link"],
+          description: "Filter by content format",
+        },
+      },
+      required: ["handle"],
+    },
+  },
+  {
+    name: "soup_latest_from",
+    description:
+      "Get the latest content from a specific creator (by handle or name).",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        source: {
+          type: "string",
+          description: "Creator handle or display name",
+        },
+        limit: {
+          type: "number",
+          description: "Max results to return (default 10, max 50)",
+        },
+        content_type: {
+          type: "string",
+          enum: ["article", "note", "video", "audio", "image", "link"],
+          description: "Filter by content format",
+        },
+      },
+      required: ["source"],
+    },
+  },
+  {
     name: "soup_stats",
     description:
       "Get aggregate statistics about the human soup: creator count, content count, subscription count, and last crawl time.",
@@ -175,6 +231,68 @@ export async function handleTool(
       const limit = Math.min((args.limit as number) ?? 20, 100);
       const content = await getTrending(db, { days, limit });
       return text(JSON.stringify({ content, count: content.length }, null, 2));
+    }
+
+    case "soup_my_soup": {
+      const handle = args.handle as string;
+      const since = args.since as string | undefined;
+      const limit = Math.min((args.limit as number) ?? 50, 200);
+      const contentType = args.content_type as string | undefined;
+
+      const subscriberHash = await hashEmail(`handle:${handle}`);
+      const feed = await getFeed(db, handle, {
+        since,
+        limit,
+        contentType,
+        subscriberEmailHash: subscriberHash,
+      });
+      const sources = getDemoSourceSet(handle)?.sources ?? [];
+
+      return text(
+        JSON.stringify(
+          {
+            handle,
+            items: feed.items,
+            total: feed.total,
+            since: feed.since,
+            sources,
+          },
+          null,
+          2,
+        ),
+      );
+    }
+
+    case "soup_latest_from": {
+      const source = args.source as string;
+      const limit = Math.min((args.limit as number) ?? 10, 50);
+      const contentType = args.content_type as string | undefined;
+
+      let creator =
+        (await getCreatorByHandle(db, source)) ??
+        (await getCreatorByName(db, source));
+
+      if (!creator) {
+        return text(JSON.stringify({ error: "Creator not found" }));
+      }
+
+      const content = await getContent(db, {
+        creatorId: creator.id,
+        contentType,
+        limit,
+      });
+
+      return text(
+        JSON.stringify(
+          {
+            creator,
+            content,
+            count: content.length,
+          },
+          null,
+          2,
+        ),
+      );
     }
 
     case "soup_stats": {

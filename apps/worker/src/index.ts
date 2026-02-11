@@ -19,6 +19,8 @@ import profile from "./routes/profile";
 import feed from "./routes/feed";
 import ingest from "./routes/ingest";
 import registry from "./routes/registry";
+import owner from "./routes/owner";
+import mySoup from "./routes/mySoup";
 import mcp from "./mcp/server";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -45,6 +47,9 @@ app.get("/", (c) => {
       trending: "GET /discover/trending?days=7",
       profile: "GET /profile/:id",
       feed: "GET /feed/:subscriberId?since=2026-01-01",
+      owner: "GET /owner",
+      my_soup: "GET /my-soup/:handle",
+      ingest_sources: "POST /ingest/sources",
       ingest_ping: "POST /ingest/ping",
       ingest_register: "POST /ingest/register",
       ingest_subscribe: "POST /ingest/subscribe",
@@ -63,6 +68,8 @@ app.route("/", profile);
 app.route("/", feed);
 app.route("/", ingest);
 app.route("/", registry);
+app.route("/", owner);
+app.route("/", mySoup);
 app.route("/", mcp);
 
 // ── Scheduled (Cron) Handler ───────────────────────────────

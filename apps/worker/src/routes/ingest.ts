@@ -10,6 +10,7 @@ import { Hono } from "hono";
 import type { Env, PingPayload, SubscribePayload } from "../lib/types";
 import { normalizeUrl, uuid, hashEmail } from "../lib/me3";
 import { indexSite } from "../services/indexer";
+import { indexUserSources } from "../services/sourceIndexer";
 
 const ingest = new Hono<{ Bindings: Env }>();
 
@@ -158,6 +159,34 @@ ingest.post("/ingest/register", async (c) => {
     status: "registered",
     siteUrl,
     postsFound: result.postsFound,
+  });
+});
+
+/**
+ * POST /ingest/sources
+ * Manually refresh demo sources for a handle.
+ */
+ingest.post("/ingest/sources", async (c) => {
+  let body: { handle?: string };
+  try {
+    body = await c.req.json<{ handle?: string }>();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  if (!body.handle) {
+    return c.json({ error: "handle is required" }, 400);
+  }
+
+  const result = await indexUserSources(c.env.DB, body.handle, {
+    limitPerFeed: 20,
+  });
+
+  return c.json({
+    status: "ok",
+    handle: result.handle,
+    feedsIndexed: result.feedsIndexed,
+    itemsIndexed: result.itemsIndexed,
   });
 });
 

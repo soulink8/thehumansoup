@@ -82,6 +82,30 @@ export async function getCreatorBySiteUrl(
   return row ? toCreatorResponse(row) : null;
 }
 
+export async function getCreatorByHandle(
+  db: D1Database,
+  handle: string,
+): Promise<CreatorResponse | null> {
+  const row = await db
+    .prepare("SELECT * FROM creators WHERE handle = ?")
+    .bind(handle)
+    .first<DbCreator>();
+
+  return row ? toCreatorResponse(row) : null;
+}
+
+export async function getCreatorByName(
+  db: D1Database,
+  name: string,
+): Promise<CreatorResponse | null> {
+  const row = await db
+    .prepare("SELECT * FROM creators WHERE lower(name) = lower(?)")
+    .bind(name)
+    .first<DbCreator>();
+
+  return row ? toCreatorResponse(row) : null;
+}
+
 // ── Content Queries ────────────────────────────────────────
 
 export async function getContent(
@@ -156,9 +180,15 @@ export async function getContentByCreator(
 export async function getFeed(
   db: D1Database,
   subscriberId: string,
-  options: { since?: string; limit?: number } = {},
+  options: {
+    since?: string;
+    limit?: number;
+    contentType?: string;
+    subscriberEmailHash?: string;
+  } = {},
 ): Promise<FeedResponse> {
-  const { since, limit = 50 } = options;
+  const { since, limit = 50, contentType, subscriberEmailHash } = options;
+  const subscriberHash = subscriberEmailHash ?? subscriberId;
 
   // Get all creators this human subscribes to
   let query = `
@@ -169,7 +199,12 @@ export async function getFeed(
     WHERE (s.subscriber_id = ? OR s.subscriber_email_hash = ?)
       AND s.unsubscribed_at IS NULL
   `;
-  const params: unknown[] = [subscriberId, subscriberId];
+  const params: unknown[] = [subscriberId, subscriberHash];
+
+  if (contentType) {
+    query += " AND c.content_type = ?";
+    params.push(contentType);
+  }
 
   if (since) {
     query += " AND c.published_at >= ?";
@@ -194,7 +229,12 @@ export async function getFeed(
     WHERE (s.subscriber_id = ? OR s.subscriber_email_hash = ?)
       AND s.unsubscribed_at IS NULL
   `;
-  const countParams: unknown[] = [subscriberId, subscriberId];
+  const countParams: unknown[] = [subscriberId, subscriberHash];
+
+  if (contentType) {
+    countQuery += " AND c.content_type = ?";
+    countParams.push(contentType);
+  }
 
   if (since) {
     countQuery += " AND c.published_at >= ?";

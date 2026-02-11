@@ -6,6 +6,7 @@
 export interface Env {
   DB: D1Database;
   ENVIRONMENT: string;
+  SOUP_OWNER_SITE_URL: string;
 }
 
 // ── Database Row Types ─────────────────────────────────────

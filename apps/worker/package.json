@@ -12,6 +12,7 @@
     "db:migrate:remote": "wrangler d1 execute soup-db --remote --file=./src/db/schema.sql"
   },
   "dependencies": {
+    "fast-xml-parser": "^5.3.5",
     "hono": "^4.7.0",
     "me3-protocol": "^2.10.0"
   },
