@@ -334,6 +334,12 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
+    <section class="hero login-hero">
+      <p class="eyebrow">Attention Creators</p>
+      <h1 class="hero-title">You may add to the soup</h1>
+      <RouterLink class="button primary" to="/login"> Sign in </RouterLink>
+    </section>
+
     <!-- <section id="blog3" class="section split">
       <div>
         <p class="eyebrow">Blog Wars</p>
@@ -367,7 +373,7 @@ onBeforeUnmount(() => {
 
     <footer class="footer">
       <div>
-        <p class="muted">The Human Soup is open source.</p>
+        <p class="muted">The Human Soup 2026</p>
       </div>
       <!-- <div class="footer-links">
         <span>Powered by me3</span>

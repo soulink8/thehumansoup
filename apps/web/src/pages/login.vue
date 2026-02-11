@@ -191,15 +191,6 @@ onMounted(() => {
 
 <template>
   <div class="page">
-    <section class="hero login-hero">
-      <p class="eyebrow">The Soup for Creators</p>
-      <h1 class="hero-title">Add to the soup</h1>
-      <p class="hero-sub">
-        Sign in to claim your handle, add your feeds, and publish once for the
-        entire index.
-      </p>
-    </section>
-
     <section class="login-shell">
       <div class="login-tabs">
         <button
@@ -223,7 +214,8 @@ onMounted(() => {
       <div class="wizard-card" v-if="mode === 'email'">
         <h2>{{ codeSent ? "Enter your code" : "Sign in" }}</h2>
         <p v-if="codeSent" class="muted">
-          We sent a 6-digit code to <strong>{{ email }}</strong>.
+          We sent a 6-digit code to <strong>{{ email }}</strong
+          >.
         </p>
 
         <form v-if="!codeSent" class="form" @submit.prevent="requestCode">
