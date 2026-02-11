@@ -4,6 +4,8 @@
  * POST /auth/request - Request a 6-digit code
  * POST /auth/verify - Verify code and get JWT
  * POST /auth/me3 - Link a me3 token and get JWT
+ * GET /auth/session - Get the current session user
+ * POST /auth/logout - Clear the session cookie
  */
 
 import { Hono } from "hono";
@@ -11,6 +13,12 @@ import type { Env } from "../lib/types";
 import { createJwt, generateCode, generateId, sha256 } from "../lib/crypto";
 import { sendAuthCodeEmail } from "../lib/email";
 import { fetchMe3Profile, normalizeUrl } from "../lib/me3";
+import {
+  clearSessionCookie,
+  requireUser,
+  SESSION_TTL_SECONDS,
+  setSessionCookie,
+} from "../lib/session";
 
 const auth = new Hono<{ Bindings: Env }>();
 
@@ -174,7 +182,9 @@ auth.post("/auth/verify", async (c) => {
     const jwt = await createJwt(
       { sub: user.id, email: user.email },
       c.env.JWT_SECRET,
+      SESSION_TTL_SECONDS,
     );
+    setSessionCookie(c, jwt);
 
     return c.json({
       token: jwt,
@@ -248,9 +258,16 @@ auth.post("/auth/me3", async (c) => {
     }
 
     const jwt = await createJwt(
-      { sub: user.id, me3SiteUrl: normalizedSiteUrl },
+      {
+        sub: user.id,
+        me3SiteUrl: normalizedSiteUrl,
+        handle,
+        displayName,
+      },
       c.env.JWT_SECRET,
+      SESSION_TTL_SECONDS,
     );
+    setSessionCookie(c, jwt);
 
     return c.json({
       token: jwt,
@@ -268,6 +285,36 @@ auth.post("/auth/me3", async (c) => {
     console.error("Auth me3 error:", error);
     return c.json({ error: "Something went wrong" }, 500);
   }
+});
+
+/**
+ * Get the current session user
+ * GET /auth/session
+ */
+auth.get("/auth/session", async (c) => {
+  const session = await requireUser(c);
+  if (!session.ok) {
+    return c.json({ error: session.error }, session.status);
+  }
+
+  return c.json({
+    user: {
+      id: session.userId,
+      email: session.email,
+      me3SiteUrl: session.me3SiteUrl,
+      handle: session.handle ?? null,
+      displayName: session.displayName ?? null,
+    },
+  });
+});
+
+/**
+ * Clear the session cookie
+ * POST /auth/logout
+ */
+auth.post("/auth/logout", async (c) => {
+  clearSessionCookie(c);
+  return c.json({ ok: true });
 });
 
 export default auth;

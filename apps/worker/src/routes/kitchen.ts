@@ -6,7 +6,7 @@
 
 import { Hono } from "hono";
 import type { Env } from "../lib/types";
-import { verifyJwt } from "../lib/crypto";
+import { requireUser } from "../lib/session";
 import {
   getSoupProfileByHandle,
   resolveSoupProfileInput,
@@ -18,37 +18,13 @@ import { indexSite } from "../services/indexer";
 
 const kitchen = new Hono<{ Bindings: Env }>();
 
-async function requireUser(c: { env: Env; req: { header: (name: string) => string | undefined } }) {
-  const authHeader = c.req.header("authorization");
-  const token = authHeader?.replace(/^Bearer\s+/i, "");
-  if (!token) {
-    return { ok: false, error: "Missing auth token" };
-  }
-
-  if (!c.env.JWT_SECRET) {
-    return { ok: false, error: "JWT_SECRET is not configured" };
-  }
-
-  const payload = await verifyJwt(token, c.env.JWT_SECRET);
-  if (!payload || typeof payload.sub !== "string") {
-    return { ok: false, error: "Invalid token" };
-  }
-
-  return {
-    ok: true,
-    userId: payload.sub as string,
-    email: typeof payload.email === "string" ? payload.email : null,
-    me3SiteUrl: typeof payload.me3SiteUrl === "string" ? payload.me3SiteUrl : null,
-  };
-}
-
 /**
  * POST /kitchen/submit
  * Body: { handle?, displayName?, me3SiteUrl?, sources?[] }
  */
 kitchen.post("/kitchen/submit", async (c) => {
   const auth = await requireUser(c);
-  if (!auth.ok) return c.json({ error: auth.error }, 401);
+  if (!auth.ok) return c.json({ error: auth.error }, auth.status);
 
   let body: {
     handle?: string;

@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { clearAuth, getAuthToken, getAuthUser } from "../lib/auth";
+import { fetchAuthSession, logout } from "../lib/auth";
+
+const API_BASE =
+  import.meta.env.VITE_SOUP_API_URL ??
+  "https://thehumansoup-worker.kieranbutler.workers.dev";
 
 const route = useRoute();
 const router = useRouter();
@@ -9,11 +13,10 @@ const router = useRouter();
 const isAuthed = ref(false);
 const userLabel = ref<string | null>(null);
 
-function refreshAuth() {
-  const token = getAuthToken();
-  isAuthed.value = Boolean(token);
+async function refreshAuth() {
+  const user = await fetchAuthSession(API_BASE);
+  isAuthed.value = Boolean(user);
 
-  const user = getAuthUser();
   if (user?.displayName) {
     userLabel.value = user.displayName;
     return;
@@ -29,14 +32,14 @@ function refreshAuth() {
   userLabel.value = null;
 }
 
-function handleLogout() {
-  clearAuth();
-  refreshAuth();
+async function handleLogout() {
+  await logout(API_BASE);
+  await refreshAuth();
   router.push("/");
 }
 
 onMounted(() => {
-  refreshAuth();
+  void refreshAuth();
   window.addEventListener("storage", refreshAuth);
 });
 
@@ -47,7 +50,7 @@ onBeforeUnmount(() => {
 watch(
   () => route.fullPath,
   () => {
-    refreshAuth();
+    void refreshAuth();
   },
 );
 </script>

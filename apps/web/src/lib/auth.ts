@@ -6,34 +6,19 @@ export type AuthUser = {
   displayName?: string | null;
 };
 
-const TOKEN_KEY = "soup_auth_token";
+const LEGACY_TOKEN_KEY = "soup_auth_token";
 const USER_KEY = "soup_auth_user";
-let inMemoryToken: string | null = null;
 
 function purgeLegacyTokenStorage(): void {
   try {
     if (typeof localStorage === "undefined") return;
-    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
   } catch {
     // ignore storage access errors (privacy mode, blocked storage, etc.)
   }
 }
 
 purgeLegacyTokenStorage();
-
-export function getAuthToken(): string | null {
-  return inMemoryToken;
-}
-
-export function setAuthToken(token: string): void {
-  inMemoryToken = token;
-  purgeLegacyTokenStorage();
-}
-
-export function clearAuthToken(): void {
-  inMemoryToken = null;
-  purgeLegacyTokenStorage();
-}
 
 export function getAuthUser(): AuthUser | null {
   if (typeof localStorage === "undefined") return null;
@@ -57,6 +42,44 @@ export function clearAuthUser(): void {
 }
 
 export function clearAuth(): void {
-  clearAuthToken();
   clearAuthUser();
+}
+
+export async function fetchAuthSession(apiBase: string): Promise<AuthUser | null> {
+  try {
+    const response = await fetch(`${apiBase}/auth/session`, {
+      credentials: "include",
+    });
+
+    if (response.status === 401) {
+      clearAuthUser();
+      return null;
+    }
+
+    if (!response.ok) {
+      throw new Error(`Session request failed: ${response.status}`);
+    }
+
+    const data = (await response.json()) as { user?: AuthUser | null };
+    const user = data.user ?? null;
+    if (user) {
+      setAuthUser(user);
+    } else {
+      clearAuthUser();
+    }
+    return user;
+  } catch {
+    return getAuthUser();
+  }
+}
+
+export async function logout(apiBase: string): Promise<void> {
+  try {
+    await fetch(`${apiBase}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    });
+  } finally {
+    clearAuthUser();
+  }
 }

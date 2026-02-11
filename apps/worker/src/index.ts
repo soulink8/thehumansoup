@@ -28,9 +28,31 @@ import mcp from "./mcp/server";
 
 const app = new Hono<{ Bindings: Env }>();
 
+const DEFAULT_WEB_ORIGINS = ["http://localhost:5173", "http://localhost:4173"];
+
+function parseOrigins(value?: string): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
 // ── Middleware ──────────────────────────────────────────────
 
-app.use("*", cors());
+app.use(
+  "*",
+  cors({
+    origin: (origin, c) => {
+      if (!origin) return undefined;
+      const configured = parseOrigins(c.env.SOUP_WEB_ORIGINS);
+      const allowlist = configured.length ? configured : DEFAULT_WEB_ORIGINS;
+      return allowlist.includes(origin) ? origin : undefined;
+    },
+    credentials: true,
+    allowHeaders: ["Content-Type", "Authorization", "X-Soup-Write-Key"],
+  }),
+);
 app.use("*", logger());
 
 // ── Root ───────────────────────────────────────────────────

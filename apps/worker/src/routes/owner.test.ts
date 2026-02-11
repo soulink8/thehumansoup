@@ -21,6 +21,13 @@ import owner from "./owner";
 describe("owner routes", () => {
   let app: Hono<{ Bindings: Env }>;
 
+  type OwnerResponse = {
+    handle?: string;
+    name?: string;
+    siteUrl?: string;
+    error?: string;
+  };
+
   const mockEnv = {
     DB: {},
     SOUP_OWNER_SITE_URL: "https://kieran.me",
@@ -37,7 +44,7 @@ describe("owner routes", () => {
       const envWithoutOwner = { ...mockEnv, SOUP_OWNER_SITE_URL: undefined };
 
       const res = await app.request("/owner", { method: "GET" }, envWithoutOwner);
-      const json = await res.json();
+      const json = (await res.json()) as OwnerResponse;
 
       expect(res.status).toBe(500);
       expect(json.error).toContain("SOUP_OWNER_SITE_URL");
@@ -51,7 +58,7 @@ describe("owner routes", () => {
       });
 
       const res = await app.request("/owner", { method: "GET" }, mockEnv);
-      const json = await res.json();
+      const json = (await res.json()) as OwnerResponse;
 
       expect(res.status).toBe(200);
       expect(json.handle).toBe("kieran");
@@ -69,7 +76,7 @@ describe("owner routes", () => {
       });
 
       const res = await app.request("/owner", { method: "GET" }, mockEnv);
-      const json = await res.json();
+      const json = (await res.json()) as OwnerResponse;
 
       expect(res.status).toBe(404);
       expect(json.error).toBe("Owner not found");
@@ -89,7 +96,7 @@ describe("owner routes", () => {
       });
 
       const res = await app.request("/owner", { method: "GET" }, mockEnv);
-      const json = await res.json();
+      const json = (await res.json()) as OwnerResponse;
 
       expect(res.status).toBe(200);
       expect(json.handle).toBe("kieran");

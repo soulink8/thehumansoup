@@ -12,6 +12,21 @@ import health from "./health";
 describe("health routes", () => {
   let app: Hono<{ Bindings: Env }>;
 
+  type HealthResponse = {
+    status: string;
+    service: string;
+    version: string;
+    timestamp: string;
+  };
+
+  type StatsResponse = {
+    creators: number;
+    content: number;
+    subscriptions: number;
+    topics: number;
+    lastCrawl: string | null;
+  };
+
   const mockEnv = {
     DB: {},
   } as Env;
@@ -25,7 +40,7 @@ describe("health routes", () => {
   describe("GET /health", () => {
     it("returns ok status and service info", async () => {
       const res = await app.request("/health", { method: "GET" }, mockEnv);
-      const json = await res.json();
+      const json = (await res.json()) as HealthResponse;
 
       expect(res.status).toBe(200);
       expect(json.status).toBe("ok");
@@ -46,7 +61,7 @@ describe("health routes", () => {
       });
 
       const res = await app.request("/stats", { method: "GET" }, mockEnv);
-      const json = await res.json();
+      const json = (await res.json()) as StatsResponse;
 
       expect(res.status).toBe(200);
       expect(json.creators).toBe(10);
@@ -66,7 +81,7 @@ describe("health routes", () => {
       });
 
       const res = await app.request("/stats", { method: "GET" }, mockEnv);
-      const json = await res.json();
+      const json = (await res.json()) as StatsResponse;
 
       expect(res.status).toBe(200);
       expect(json.creators).toBe(0);

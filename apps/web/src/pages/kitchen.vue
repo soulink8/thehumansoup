@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { getAuthToken, getAuthUser } from "../lib/auth";
+import { fetchAuthSession, getAuthUser } from "../lib/auth";
 
 const API_BASE =
   import.meta.env.VITE_SOUP_API_URL ??
@@ -29,8 +29,8 @@ function removeSource(index: number) {
 
 async function submit() {
   error.value = null;
-  const token = getAuthToken();
-  if (!token) {
+  const session = await fetchAuthSession(API_BASE);
+  if (!session) {
     router.push("/login?redirect=/kitchen");
     return;
   }
@@ -46,8 +46,8 @@ async function submit() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
+      credentials: "include",
       body: JSON.stringify({
         handle: handle.value.trim() || undefined,
         displayName: displayName.value.trim() || undefined,
@@ -61,6 +61,11 @@ async function submit() {
           .filter((source) => source.feedUrl),
       }),
     });
+
+    if (response.status === 401) {
+      router.push("/login?redirect=/kitchen");
+      return;
+    }
 
     if (!response.ok) {
       const data = await response.json();
@@ -78,22 +83,24 @@ async function submit() {
 }
 
 onMounted(() => {
-  const token = getAuthToken();
-  if (!token) {
-    router.push("/login?redirect=/kitchen");
-    return;
-  }
+  void (async () => {
+    const session = await fetchAuthSession(API_BASE);
+    if (!session) {
+      router.push("/login?redirect=/kitchen");
+      return;
+    }
 
-  const user = getAuthUser();
-  if (user?.handle && !handle.value) {
-    handle.value = user.handle;
-  }
-  if (user?.displayName && !displayName.value) {
-    displayName.value = user.displayName;
-  }
-  if (user?.me3SiteUrl && !me3SiteUrl.value) {
-    me3SiteUrl.value = user.me3SiteUrl;
-  }
+    const user = session ?? getAuthUser();
+    if (user?.handle && !handle.value) {
+      handle.value = user.handle;
+    }
+    if (user?.displayName && !displayName.value) {
+      displayName.value = user.displayName;
+    }
+    if (user?.me3SiteUrl && !me3SiteUrl.value) {
+      me3SiteUrl.value = user.me3SiteUrl;
+    }
+  })();
 });
 </script>
 

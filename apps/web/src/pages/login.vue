@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { getAuthToken, setAuthToken, setAuthUser } from "../lib/auth";
+import { fetchAuthSession, setAuthUser } from "../lib/auth";
 
 const API_BASE =
   import.meta.env.VITE_SOUP_API_URL ??
@@ -109,6 +109,7 @@ async function submitCode() {
     const response = await fetch(`${API_BASE}/auth/verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ email: email.value, code: fullCode }),
     });
 
@@ -118,7 +119,6 @@ async function submitCode() {
     }
 
     const data = await response.json();
-    setAuthToken(data.token);
     setAuthUser({
       id: data.user?.id,
       email: data.user?.email,
@@ -153,6 +153,7 @@ async function submitMe3() {
     const response = await fetch(`${API_BASE}/auth/me3`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
         siteUrl: me3SiteUrl.value.trim(),
         token: me3Token.value.trim(),
@@ -165,7 +166,6 @@ async function submitMe3() {
     }
 
     const data = await response.json();
-    setAuthToken(data.token);
     setAuthUser({
       id: data.user?.id,
       email: data.user?.email,
@@ -183,15 +183,16 @@ async function submitMe3() {
 }
 
 onMounted(() => {
-  const token = getAuthToken();
-  if (token) {
-    redirectAfterLogin();
-    return;
-  }
-
-  if (route.query.mode === "me3") {
-    mode.value = "me3";
-  }
+  void (async () => {
+    const session = await fetchAuthSession(API_BASE);
+    if (session) {
+      redirectAfterLogin();
+      return;
+    }
+    if (route.query.mode === "me3") {
+      mode.value = "me3";
+    }
+  })();
 });
 </script>
 

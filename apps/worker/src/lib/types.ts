@@ -13,6 +13,7 @@ export interface Env {
   POSTMARK_FROM_EMAIL: string;
   POSTMARK_STREAM: string;
   JWT_SECRET: string;
+  SOUP_WEB_ORIGINS?: string;
 }
 
 // ── Database Row Types ─────────────────────────────────────
