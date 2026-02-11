@@ -8,20 +8,31 @@ export type AuthUser = {
 
 const TOKEN_KEY = "soup_auth_token";
 const USER_KEY = "soup_auth_user";
+let inMemoryToken: string | null = null;
+
+function purgeLegacyTokenStorage(): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // ignore storage access errors (privacy mode, blocked storage, etc.)
+  }
+}
+
+purgeLegacyTokenStorage();
 
 export function getAuthToken(): string | null {
-  if (typeof localStorage === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
+  return inMemoryToken;
 }
 
 export function setAuthToken(token: string): void {
-  if (typeof localStorage === "undefined") return;
-  localStorage.setItem(TOKEN_KEY, token);
+  inMemoryToken = token;
+  purgeLegacyTokenStorage();
 }
 
 export function clearAuthToken(): void {
-  if (typeof localStorage === "undefined") return;
-  localStorage.removeItem(TOKEN_KEY);
+  inMemoryToken = null;
+  purgeLegacyTokenStorage();
 }
 
 export function getAuthUser(): AuthUser | null {
