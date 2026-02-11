@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { setAuthToken, setAuthUser } from "../lib/auth";
+import { getAuthToken, setAuthToken, setAuthUser } from "../lib/auth";
 
 const API_BASE =
   import.meta.env.VITE_SOUP_API_URL ??
@@ -183,6 +183,12 @@ async function submitMe3() {
 }
 
 onMounted(() => {
+  const token = getAuthToken();
+  if (token) {
+    redirectAfterLogin();
+    return;
+  }
+
   if (route.query.mode === "me3") {
     mode.value = "me3";
   }
