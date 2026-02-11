@@ -10,10 +10,9 @@ import type { Env } from "../lib/types";
 import {
   getCreators,
   getContent,
-  getCreatorById,
-  getContentByCreator,
   getTrending,
 } from "../services/graph";
+import { discoverSources } from "../services/discovery";
 
 const discover = new Hono<{ Bindings: Env }>();
 
@@ -93,6 +92,29 @@ discover.get("/discover/trending", async (c) => {
   });
 
   return c.json({ content, count: content.length });
+});
+
+/**
+ * GET /discover/sources
+ * Discover potential RSS sources by name.
+ *
+ * Query params:
+ *   - q: search query
+ */
+discover.get("/discover/sources", async (c) => {
+  const query = c.req.query("q");
+  if (!query) {
+    return c.json({ error: "q query parameter is required" }, 400);
+  }
+
+  try {
+    const candidates = await discoverSources(query, c.env.BRAVE_SEARCH_API_KEY);
+    return c.json({ query, candidates });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Discovery failed";
+    return c.json({ error: message }, 500);
+  }
 });
 
 export default discover;

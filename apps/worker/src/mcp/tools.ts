@@ -16,8 +16,16 @@ import {
   getTrending,
   getStats,
 } from "../services/graph";
-import { getDemoSourceSet } from "../services/sourceIndexer";
+import { getDemoSourceSet, indexUserSources } from "../services/sourceIndexer";
 import { hashEmail } from "../lib/me3";
+import {
+  deleteSoupSource,
+  listSoupSourcesByHandle,
+  resolveSoupProfileInput,
+  upsertSoupProfile,
+  upsertSoupSources,
+} from "../services/soupStore";
+import type { Env } from "../lib/types";
 
 // ── Tool Definitions ───────────────────────────────────────
 
@@ -172,12 +180,84 @@ export const TOOLS = [
       properties: {},
     },
   },
+  {
+    name: "soup_add_sources",
+    description:
+      "Add or update sources for a soup handle. Requires write access.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        write_key: {
+          type: "string",
+          description: "Write key for soup management",
+        },
+        handle: {
+          type: "string",
+          description: "Soup handle (e.g. 'kieran')",
+        },
+        display_name: {
+          type: "string",
+          description: "Display name for the soup profile",
+        },
+        me3_site_url: {
+          type: "string",
+          description: "Optional me3 site URL to sync handle",
+        },
+        sources: {
+          type: "array",
+          description: "Sources to add",
+          items: {
+            type: "object",
+            properties: {
+              feed_url: { type: "string" },
+              source_type: {
+                type: "string",
+                enum: ["video", "audio", "article"],
+              },
+              name: { type: "string" },
+              site_url: { type: "string" },
+              confidence: { type: "number" },
+            },
+            required: ["feed_url", "source_type"],
+          },
+        },
+      },
+      required: ["write_key", "sources"],
+    },
+  },
+  {
+    name: "soup_remove_source",
+    description: "Remove a source from a soup handle. Requires write access.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        write_key: { type: "string" },
+        handle: { type: "string" },
+        feed_url: { type: "string" },
+      },
+      required: ["write_key", "handle", "feed_url"],
+    },
+  },
+  {
+    name: "soup_ingest",
+    description:
+      "Ingest sources for a soup handle (index feeds). Requires write access.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        write_key: { type: "string" },
+        handle: { type: "string" },
+      },
+      required: ["write_key", "handle"],
+    },
+  },
 ] as const;
 
 // ── Tool Handlers ──────────────────────────────────────────
 
 export async function handleTool(
   db: D1Database,
+  env: Env,
   name: string,
   args: Record<string, unknown>,
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
@@ -239,14 +319,25 @@ export async function handleTool(
       const limit = Math.min((args.limit as number) ?? 50, 200);
       const contentType = args.content_type as string | undefined;
 
+      const creator = await getCreatorByHandle(db, handle);
+      const subscriberId = creator?.id ?? handle;
       const subscriberHash = await hashEmail(`handle:${handle}`);
-      const feed = await getFeed(db, handle, {
+      const feed = await getFeed(db, subscriberId, {
         since,
         limit,
         contentType,
         subscriberEmailHash: subscriberHash,
       });
-      const sources = getDemoSourceSet(handle)?.sources ?? [];
+      const soupSources = await listSoupSourcesByHandle(db, handle);
+      const sources =
+        soupSources?.sources.map((source) => ({
+          feedUrl: source.feedUrl,
+          type: source.sourceType,
+          name: source.name ?? undefined,
+          siteUrl: source.siteUrl ?? undefined,
+          addedBy: source.addedBy,
+          addedVia: source.addedVia,
+        })) ?? getDemoSourceSet(handle)?.sources ?? [];
 
       return text(
         JSON.stringify(
@@ -300,6 +391,65 @@ export async function handleTool(
       return text(JSON.stringify(stats, null, 2));
     }
 
+    case "soup_add_sources": {
+      if (!isWriteKeyValid(env, args.write_key as string | undefined)) {
+        return text(JSON.stringify({ error: "Invalid write key" }));
+      }
+
+      const profileInput = await resolveSoupProfileInput({
+        handle: args.handle as string | undefined,
+        displayName: args.display_name as string | undefined,
+        me3SiteUrl: args.me3_site_url as string | undefined,
+      });
+
+      const profile = await upsertSoupProfile(db, profileInput);
+      const sources = (args.sources as Array<Record<string, unknown>> | undefined) ?? [];
+
+      const count = await upsertSoupSources(
+        db,
+        profile.id,
+        sources.map((source) => ({
+          feedUrl: source.feed_url as string,
+          sourceType: source.source_type as "video" | "audio" | "article",
+          name: (source.name as string | undefined) ?? null,
+          siteUrl: (source.site_url as string | undefined) ?? null,
+          confidence: (source.confidence as number | undefined) ?? null,
+        })),
+        { addedBy: "agent", addedVia: "mcp" },
+      );
+
+      return text(
+        JSON.stringify(
+          { status: "ok", handle: profile.handle, sourcesAdded: count },
+          null,
+          2,
+        ),
+      );
+    }
+
+    case "soup_remove_source": {
+      if (!isWriteKeyValid(env, args.write_key as string | undefined)) {
+        return text(JSON.stringify({ error: "Invalid write key" }));
+      }
+      const handle = args.handle as string;
+      const feedUrl = args.feed_url as string;
+      const soupProfile = await listSoupSourcesByHandle(db, handle);
+      if (!soupProfile) {
+        return text(JSON.stringify({ error: "Soup profile not found" }));
+      }
+      await deleteSoupSource(db, soupProfile.profile.id, feedUrl);
+      return text(JSON.stringify({ status: "ok" }, null, 2));
+    }
+
+    case "soup_ingest": {
+      if (!isWriteKeyValid(env, args.write_key as string | undefined)) {
+        return text(JSON.stringify({ error: "Invalid write key" }));
+      }
+      const handle = args.handle as string;
+      const result = await indexUserSources(db, handle, { limitPerFeed: 20 });
+      return text(JSON.stringify({ status: "ok", ...result }, null, 2));
+    }
+
     default:
       return text(JSON.stringify({ error: `Unknown tool: ${name}` }));
   }
@@ -309,4 +459,9 @@ function text(content: string): {
   content: Array<{ type: "text"; text: string }>;
 } {
   return { content: [{ type: "text", text: content }] };
+}
+
+function isWriteKeyValid(env: Env, provided?: string): boolean {
+  if (!env.SOUP_WRITE_KEY) return false;
+  return !!provided && provided === env.SOUP_WRITE_KEY;
 }

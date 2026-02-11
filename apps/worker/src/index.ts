@@ -21,6 +21,7 @@ import ingest from "./routes/ingest";
 import registry from "./routes/registry";
 import owner from "./routes/owner";
 import mySoup from "./routes/mySoup";
+import soup from "./routes/soup";
 import mcp from "./mcp/server";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -49,6 +50,9 @@ app.get("/", (c) => {
       feed: "GET /feed/:subscriberId?since=2026-01-01",
       owner: "GET /owner",
       my_soup: "GET /my-soup/:handle",
+      soup_sources: "POST /soup/sources",
+      soup_remove_source: "DELETE /soup/sources",
+      soup_ingest: "POST /soup/ingest",
       ingest_sources: "POST /ingest/sources",
       ingest_ping: "POST /ingest/ping",
       ingest_register: "POST /ingest/register",
@@ -70,6 +74,7 @@ app.route("/", ingest);
 app.route("/", registry);
 app.route("/", owner);
 app.route("/", mySoup);
+app.route("/", soup);
 app.route("/", mcp);
 
 // ── Scheduled (Cron) Handler ───────────────────────────────

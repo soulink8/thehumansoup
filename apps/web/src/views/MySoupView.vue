@@ -25,6 +25,8 @@ type SourceItem = {
   type: string;
   name?: string;
   siteUrl?: string;
+  addedBy?: string;
+  addedVia?: string;
 };
 
 type MySoupResponse = {
@@ -56,7 +58,15 @@ const filteredLabel = computed(() =>
 );
 
 const sourceLabels = computed(() =>
-  sources.value.map((source) => source.name || domainFromUrl(source.feedUrl))
+  sources.value.map((source) => ({
+    label: source.name || domainFromUrl(source.feedUrl),
+    addedBy:
+      source.addedBy === "agent"
+        ? "agent"
+        : source.addedBy
+        ? "human"
+        : undefined,
+  }))
 );
 
 function formatDate(value?: string | null): string {
@@ -178,8 +188,13 @@ watch(
       </div>
 
       <div v-if="sourceLabels.length" class="source-pills">
-        <span v-for="(label, index) in sourceLabels" :key="`${label}-${index}`" class="source-pill">
-          {{ label }}
+        <span
+          v-for="(source, index) in sourceLabels"
+          :key="`${source.label}-${index}`"
+          class="source-pill"
+        >
+          <span>{{ source.label }}</span>
+          <span v-if="source.addedBy" class="source-meta">added by: {{ source.addedBy }}</span>
         </span>
       </div>
 

@@ -3,6 +3,7 @@ import { DEMO_SOURCES } from "../sources/demoSources";
 import { parseFeed } from "./rss";
 import type { ParsedFeed } from "./rss";
 import { hashEmail, normalizeUrl, uuid } from "../lib/me3";
+import { listSoupSourcesByHandle } from "./soupStore";
 
 export interface IndexSourcesResult {
   handle: string;
@@ -20,8 +21,8 @@ export async function indexUserSources(
   handle: string,
   options: { limitPerFeed?: number } = {},
 ): Promise<IndexSourcesResult> {
-  const sourceSet = getDemoSourceSet(handle);
-  if (!sourceSet) {
+  const sources = await getSourcesForHandle(db, handle);
+  if (!sources.length) {
     return { handle, feedsIndexed: 0, itemsIndexed: 0, creatorIds: [] };
   }
 
@@ -30,7 +31,7 @@ export async function indexUserSources(
   let feedsIndexed = 0;
   let itemsIndexed = 0;
 
-  for (const source of sourceSet.sources) {
+  for (const source of sources) {
     const result = await indexFeed(db, source, limitPerFeed);
     if (result) {
       creatorIds.push(result.creatorId);
@@ -44,6 +45,24 @@ export async function indexUserSources(
   }
 
   return { handle, feedsIndexed, itemsIndexed, creatorIds };
+}
+
+async function getSourcesForHandle(
+  db: D1Database,
+  handle: string,
+): Promise<DemoSource[]> {
+  const soup = await listSoupSourcesByHandle(db, handle);
+  if (soup?.sources?.length) {
+    return soup.sources.map((source) => ({
+      feedUrl: source.feedUrl,
+      type: source.sourceType,
+      name: source.name ?? undefined,
+      siteUrl: source.siteUrl ?? undefined,
+    }));
+  }
+
+  const demo = getDemoSourceSet(handle);
+  return demo?.sources ?? [];
 }
 
 export async function ensureSubscriptions(

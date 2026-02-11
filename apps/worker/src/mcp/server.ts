@@ -73,7 +73,7 @@ mcp.post("/mcp", async (c) => {
       }
 
       try {
-        const result = await handleTool(c.env.DB, toolName, toolArgs);
+        const result = await handleTool(c.env.DB, c.env, toolName, toolArgs);
         return c.json(jsonRpcResult(id, result));
       } catch (error) {
         const message =

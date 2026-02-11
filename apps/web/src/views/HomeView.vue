@@ -224,9 +224,14 @@ onBeforeUnmount(() => {
             {{ lookupLoading ? "Checking" : "Check your site" }}
           </button>
         </form>
-        <RouterLink class="button ghost" :to="ownerSoupPath">
-          Serve me my soup
-        </RouterLink>
+        <div class="hero-cta-row">
+          <RouterLink class="button ghost" :to="ownerSoupPath">
+            Serve me my soup
+          </RouterLink>
+          <RouterLink class="button ghost" to="/brew">
+            Brew my soup
+          </RouterLink>
+        </div>
       </div>
       <p class="hero-hint">Paste your me3 URL to see what the soup can read.</p>
       <p v-if="lookupError" class="error">{{ lookupError }}</p>

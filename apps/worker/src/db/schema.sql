@@ -99,6 +99,31 @@ CREATE TABLE IF NOT EXISTS crawl_log (
   crawled_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Soup Profiles: owner of a custom soup (agent + wizard)
+CREATE TABLE IF NOT EXISTS soup_profiles (
+  id TEXT PRIMARY KEY,
+  handle TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL,
+  me3_site_url TEXT,
+  visibility TEXT NOT NULL DEFAULT 'public',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Soup Sources: per-handle list of sources with provenance
+CREATE TABLE IF NOT EXISTS soup_sources (
+  id TEXT PRIMARY KEY,
+  profile_id TEXT NOT NULL REFERENCES soup_profiles(id) ON DELETE CASCADE,
+  source_type TEXT NOT NULL,
+  name TEXT,
+  feed_url TEXT NOT NULL,
+  site_url TEXT,
+  confidence REAL DEFAULT 0.5,
+  added_by TEXT NOT NULL,
+  added_via TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(profile_id, feed_url)
+);
+
 -- ── Indexes ────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_creators_handle ON creators(handle);
 CREATE INDEX IF NOT EXISTS idx_creators_trust ON creators(trust_score DESC);
@@ -110,3 +135,5 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_creator ON subscriptions(creator_id
 CREATE INDEX IF NOT EXISTS idx_subscriptions_subscriber ON subscriptions(subscriber_id);
 CREATE INDEX IF NOT EXISTS idx_crawl_log_creator ON crawl_log(creator_id);
 CREATE INDEX IF NOT EXISTS idx_crawl_log_status ON crawl_log(status);
+CREATE INDEX IF NOT EXISTS idx_soup_profiles_handle ON soup_profiles(handle);
+CREATE INDEX IF NOT EXISTS idx_soup_sources_profile ON soup_sources(profile_id);

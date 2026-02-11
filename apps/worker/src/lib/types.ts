@@ -7,6 +7,8 @@ export interface Env {
   DB: D1Database;
   ENVIRONMENT: string;
   SOUP_OWNER_SITE_URL: string;
+  SOUP_WRITE_KEY: string;
+  BRAVE_SEARCH_API_KEY: string;
 }
 
 // ── Database Row Types ─────────────────────────────────────
@@ -91,6 +93,28 @@ export interface DbCrawlLog {
   error: string | null;
   duration_ms: number | null;
   crawled_at: string;
+}
+
+export interface DbSoupProfile {
+  id: string;
+  handle: string;
+  display_name: string;
+  me3_site_url: string | null;
+  visibility: "public" | "unlisted" | "private";
+  created_at: string;
+}
+
+export interface DbSoupSource {
+  id: string;
+  profile_id: string;
+  source_type: "video" | "audio" | "article";
+  name: string | null;
+  feed_url: string;
+  site_url: string | null;
+  confidence: number | null;
+  added_by: "agent" | "wizard" | "user";
+  added_via: "mcp" | "web" | "api";
+  created_at: string;
 }
 
 // ── API Response Types ─────────────────────────────────────
