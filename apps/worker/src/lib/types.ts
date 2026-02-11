@@ -9,6 +9,10 @@ export interface Env {
   SOUP_OWNER_SITE_URL: string;
   SOUP_WRITE_KEY: string;
   BRAVE_SEARCH_API_KEY: string;
+  POSTMARK_TOKEN: string;
+  POSTMARK_FROM_EMAIL: string;
+  POSTMARK_STREAM: string;
+  JWT_SECRET: string;
 }
 
 // ── Database Row Types ─────────────────────────────────────
@@ -101,6 +105,7 @@ export interface DbSoupProfile {
   display_name: string;
   me3_site_url: string | null;
   visibility: "public" | "unlisted" | "private";
+  owner_id?: string | null;
   created_at: string;
 }
 

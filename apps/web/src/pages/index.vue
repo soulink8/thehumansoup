@@ -261,7 +261,11 @@ onBeforeUnmount(() => {
       </div>
 
       <div v-if="lookupContent.length" class="content-grid hero-result-grid">
-        <ContentCard v-for="item in lookupContent" :key="item.id" :item="item" />
+        <ContentCard
+          v-for="item in lookupContent"
+          :key="item.id"
+          :item="item"
+        />
       </div>
     </section>
 
@@ -289,14 +293,14 @@ onBeforeUnmount(() => {
         </div>
         <div class="stats-grid">
           <div class="stat-card">
-            <p class="stat-label">Creators</p>
+            <p class="stat-label">Chefs (creators)</p>
             <p class="stat-value">
               {{ stats ? formatNumber(stats.creators) : "—" }}
             </p>
-            <p class="stat-note">Sites in the soup.</p>
+            <p class="stat-note">Cooks of the soup.</p>
           </div>
           <div class="stat-card">
-            <p class="stat-label">Posts</p>
+            <p class="stat-label">Ingredients (posts)</p>
             <p class="stat-value">
               {{ stats ? formatNumber(stats.content) : "—" }}
             </p>
@@ -310,7 +314,7 @@ onBeforeUnmount(() => {
             <p class="stat-note">Who follows who.</p>
           </div>
           <div class="stat-card">
-            <p class="stat-label">Last crawl</p>
+            <p class="stat-label">Last stir</p>
             <p class="stat-value">{{ lastCrawlLabel }}</p>
             <p class="stat-note">Source: {{ apiLabel }}</p>
           </div>

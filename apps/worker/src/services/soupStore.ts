@@ -8,6 +8,7 @@ export interface SoupProfileInput {
   displayName: string;
   me3SiteUrl?: string | null;
   visibility?: SoupVisibility;
+  ownerId?: string | null;
 }
 
 export interface SoupSourceInput {
@@ -84,15 +85,17 @@ export async function upsertSoupProfile(
   const profile = await getSoupProfileByHandle(db, input.handle);
   const id = profile?.id ?? uuid();
   const visibility = input.visibility ?? "public";
+  const ownerId = input.ownerId ?? profile?.owner_id ?? null;
 
   await db
     .prepare(
-      `INSERT INTO soup_profiles (id, handle, display_name, me3_site_url, visibility)
-       VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO soup_profiles (id, handle, display_name, me3_site_url, visibility, owner_id)
+       VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(handle) DO UPDATE SET
          display_name = excluded.display_name,
          me3_site_url = excluded.me3_site_url,
-         visibility = excluded.visibility`,
+         visibility = excluded.visibility,
+         owner_id = COALESCE(soup_profiles.owner_id, excluded.owner_id)`,
     )
     .bind(
       id,
@@ -100,6 +103,7 @@ export async function upsertSoupProfile(
       input.displayName,
       input.me3SiteUrl ?? null,
       visibility,
+      ownerId,
     )
     .run();
 

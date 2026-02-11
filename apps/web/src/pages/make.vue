@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 
 type SourceCandidate = {
   name: string;
@@ -22,9 +23,9 @@ const API_BASE =
   "https://thehumansoup-worker.kieranbutler.workers.dev";
 const WRITE_KEY = import.meta.env.VITE_SOUP_WRITE_KEY ?? "";
 
+const router = useRouter();
 const step = ref(0);
 const handle = ref("");
-const displayName = ref("");
 const handleError = ref<string | null>(null);
 const searchQuery = ref("");
 const searchResults = ref<SourceCandidate[]>([]);
@@ -33,7 +34,6 @@ const selectedSources = ref<SourceInput[]>([]);
 const error = ref<string | null>(null);
 const isSaving = ref(false);
 const finalHandle = ref<string>("");
-const isReady = ref(false);
 const showManualModal = ref(false);
 const manualFeedUrl = ref("");
 const manualName = ref("");
@@ -42,20 +42,13 @@ const manualError = ref<string | null>(null);
 
 const steps = [
   { title: "Add ingredients", subtitle: "Search, add, and tweak sources." },
-  { title: "Simmer", subtitle: "Warm the pot before serving." },
   { title: "Grab a bowl", subtitle: "Name the bowl and serve your soup." },
 ];
 
 const canContinue = computed(() => {
   if (step.value === 0) return selectedSources.value.length > 0;
-  if (step.value === 1) return true;
-  if (step.value === 2) return handle.value.trim().length >= 3;
+  if (step.value === 1) return handle.value.trim().length >= 3;
   return true;
-});
-
-const soupPath = computed(() => {
-  const h = cleanHandle(finalHandle.value || handle.value.trim());
-  return h ? `/@${h}` : "/@";
 });
 
 const selectedPreview = computed(() =>
@@ -156,7 +149,6 @@ async function saveSoup() {
       },
       body: JSON.stringify({
         handle: handle.value.trim() || undefined,
-        displayName: displayName.value.trim() || undefined,
         sources: selectedSources.value.map((source) => ({
           feedUrl: source.feedUrl.trim(),
           sourceType: source.sourceType,
@@ -185,7 +177,7 @@ async function saveSoup() {
       body: JSON.stringify({ handle: data.handle }),
     });
 
-    isReady.value = true;
+    await router.push(`/@${finalHandle.value}`);
   } catch (err) {
     error.value = err instanceof Error ? err.message : "Failed to make soup";
   } finally {
@@ -195,8 +187,11 @@ async function saveSoup() {
 
 function nextStep() {
   if (!canContinue.value) return;
-  if (step.value >= 2) return;
-  step.value += 1;
+  if (step.value >= 1) return;
+  step.value = 1;
+  if (!handle.value.trim()) {
+    handle.value = generateSoupHandle();
+  }
 }
 
 function prevStep() {
@@ -221,18 +216,35 @@ watch(handle, (value) => {
     cleaned.length > 0 && cleaned.length < 3
       ? "Handle must be at least 3 characters."
       : null;
-  isReady.value = false;
   finalHandle.value = "";
 });
 
 watch(
   selectedSources,
   () => {
-    isReady.value = false;
     finalHandle.value = "";
   },
   { deep: true },
 );
+
+function generateSoupHandle(): string {
+  const adjectives = [
+    "spicy",
+    "misty",
+    "golden",
+    "wild",
+    "electric",
+    "cosmic",
+    "silky",
+    "bold",
+    "gentle",
+    "smoky",
+  ];
+  const nouns = ["broth", "stew", "soup", "chowder", "bisque"];
+  const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const noun = nouns[Math.floor(Math.random() * nouns.length)];
+  return cleanHandle(`${adjective}-${noun}`);
+}
 
 function isSelected(candidate: SourceCandidate): boolean {
   return selectedSources.value.some(
@@ -298,16 +310,12 @@ function isSelected(candidate: SourceCandidate): boolean {
     <section class="section">
       <p v-if="error" class="error">{{ error }}</p>
 
-      <div v-if="step === 2" class="wizard-card">
+      <div v-if="step === 1" class="wizard-card">
         <label class="field">
           <span>Bowl handle</span>
           <input v-model="handle" placeholder="kierans-soup" />
         </label>
         <p v-if="handleError" class="error">{{ handleError }}</p>
-        <label class="field">
-          <span>Display name (optional)</span>
-          <input v-model="displayName" placeholder="Kieran's Soup" />
-        </label>
         <div class="callout-actions">
           <button
             class="button primary"
@@ -315,11 +323,8 @@ function isSelected(candidate: SourceCandidate): boolean {
             :disabled="!canContinue || isSaving"
             @click="saveSoup"
           >
-            {{ isSaving ? "Simmering..." : "Serve my soup" }}
+            {{ isSaving ? "Serving..." : "Serve me my soup" }}
           </button>
-          <RouterLink v-if="isReady" class="button ghost" :to="soupPath">
-            Open my soup
-          </RouterLink>
         </div>
       </div>
 
@@ -363,12 +368,6 @@ function isSelected(candidate: SourceCandidate): boolean {
           </button>
         </div>
       </div>
-
-      <div v-else-if="step === 1" class="wizard-card simmer-card">
-        <div class="simmer-badge">Soup is simmering</div>
-        <p class="muted">Your ingredients are set. Grab a bowl to serve.</p>
-      </div>
-
     </section>
 
     <div v-if="showManualModal" class="modal-overlay" @click.self="closeManualModal">
@@ -399,7 +398,7 @@ function isSelected(candidate: SourceCandidate): boolean {
       </div>
     </div>
 
-    <section class="section wizard-footer">
+    <section v-if="step === 0" class="section wizard-footer">
       <div class="nav-row">
         <button
           class="button ghost"
@@ -412,10 +411,10 @@ function isSelected(candidate: SourceCandidate): boolean {
         <button
           class="button primary"
           type="button"
-          :disabled="!canContinue || step >= 2"
+          :disabled="!canContinue"
           @click="nextStep"
         >
-          {{ step === 1 ? "Grab a bowl" : "Simmer" }}
+          Grab a bowl
         </button>
       </div>
     </section>

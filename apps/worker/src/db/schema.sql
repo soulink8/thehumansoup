@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS soup_profiles (
   display_name TEXT NOT NULL,
   me3_site_url TEXT,
   visibility TEXT NOT NULL DEFAULT 'public',
+  owner_id TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -124,6 +125,27 @@ CREATE TABLE IF NOT EXISTS soup_sources (
   UNIQUE(profile_id, feed_url)
 );
 
+-- Auth: magic-link tokens and user accounts for creator onboarding
+CREATE TABLE IF NOT EXISTS soup_users (
+  id TEXT PRIMARY KEY,
+  email TEXT,
+  me3_site_url TEXT,
+  me3_token_hash TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_login_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS magic_tokens (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  token_hash TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  attempt_count INTEGER DEFAULT 0,
+  consumed_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- ── Indexes ────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_creators_handle ON creators(handle);
 CREATE INDEX IF NOT EXISTS idx_creators_trust ON creators(trust_score DESC);
@@ -137,3 +159,7 @@ CREATE INDEX IF NOT EXISTS idx_crawl_log_creator ON crawl_log(creator_id);
 CREATE INDEX IF NOT EXISTS idx_crawl_log_status ON crawl_log(status);
 CREATE INDEX IF NOT EXISTS idx_soup_profiles_handle ON soup_profiles(handle);
 CREATE INDEX IF NOT EXISTS idx_soup_sources_profile ON soup_sources(profile_id);
+CREATE INDEX IF NOT EXISTS idx_magic_tokens_email ON magic_tokens(email);
+CREATE INDEX IF NOT EXISTS idx_magic_tokens_token_hash ON magic_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_soup_users_email ON soup_users(email);
+CREATE INDEX IF NOT EXISTS idx_soup_users_me3_site_url ON soup_users(me3_site_url);

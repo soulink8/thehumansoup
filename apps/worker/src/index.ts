@@ -22,6 +22,8 @@ import registry from "./routes/registry";
 import owner from "./routes/owner";
 import mySoup from "./routes/mySoup";
 import soup from "./routes/soup";
+import auth from "./routes/auth";
+import kitchen from "./routes/kitchen";
 import mcp from "./mcp/server";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -75,6 +77,8 @@ app.route("/", registry);
 app.route("/", owner);
 app.route("/", mySoup);
 app.route("/", soup);
+app.route("/", auth);
+app.route("/", kitchen);
 app.route("/", mcp);
 
 // ── Scheduled (Cron) Handler ───────────────────────────────
