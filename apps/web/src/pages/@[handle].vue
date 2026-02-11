@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
+import ContentCard from "../components/ContentCard.vue";
 
 type ContentItem = {
   id: string;
@@ -54,7 +55,7 @@ const activeType = ref<string>("all");
 const handle = computed(() => String(route.params.handle || "").trim());
 
 const filteredLabel = computed(() =>
-  activeType.value === "all" ? "All formats" : activeType.value
+  activeType.value === "all" ? "All formats" : activeType.value,
 );
 
 const sourceLabels = computed(() =>
@@ -64,26 +65,10 @@ const sourceLabels = computed(() =>
       source.addedBy === "agent"
         ? "agent"
         : source.addedBy
-        ? "human"
-        : undefined,
-  }))
+          ? "human"
+          : undefined,
+  })),
 );
-
-function formatDate(value?: string | null): string {
-  if (!value) return "";
-  const date = new Date(value);
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function formatAction(type: string): string {
-  if (type === "video") return "Watch";
-  if (type === "audio") return "Listen";
-  return "Open";
-}
 
 async function fetchSoup() {
   if (!handle.value) return;
@@ -129,7 +114,7 @@ watch(
   () => [handle.value, activeType.value],
   () => {
     fetchSoup();
-  }
+  },
 );
 </script>
 
@@ -137,21 +122,31 @@ watch(
   <div class="page">
     <div class="beta-banner">
       <span class="beta-pill">My Soup</span>
-      <span>Custom feed for <strong>@{{ handle }}</strong>.</span>
+      <span
+        >Custom feed for <strong>@{{ handle }}</strong
+        >.</span
+      >
     </div>
 
     <section class="hero soup-hero">
       <p class="eyebrow">Personal Digest</p>
       <h1 class="hero-title">{{ displayName || handle }}'s Soup</h1>
       <p class="hero-sub">
-        A living stream of what your favorite creators just published.
-        Filter by format or ask your agent to serve it.
+        A living stream of what your favorite creators just published. Filter by
+        format or ask your agent to serve it.
       </p>
       <div class="soup-actions">
-        <button class="button primary" type="button" @click="fetchSoup" :disabled="loading">
+        <button
+          class="button primary"
+          type="button"
+          @click="fetchSoup"
+          :disabled="loading"
+        >
           {{ loading ? "Simmering..." : "Serve me my soup" }}
         </button>
-        <span class="muted">Showing {{ total }} items · {{ filteredLabel }}</span>
+        <span class="muted"
+          >Showing {{ total }} items · {{ filteredLabel }}</span
+        >
       </div>
     </section>
 
@@ -194,37 +189,19 @@ watch(
           class="source-pill"
         >
           <span>{{ source.label }}</span>
-          <span v-if="source.addedBy" class="source-meta">added by: {{ source.addedBy }}</span>
+          <span v-if="source.addedBy" class="source-meta"
+            >added by: {{ source.addedBy }}</span
+          >
         </span>
       </div>
 
       <p v-if="error" class="error">{{ error }}</p>
-      <p v-else-if="!items.length && !loading" class="muted">No items yet. Try refreshing sources.</p>
+      <p v-else-if="!items.length && !loading" class="muted">
+        No items yet. Try refreshing sources.
+      </p>
 
       <div class="content-grid">
-        <article v-for="item in items" :key="item.id" class="content-card">
-          <div v-if="item.media?.thumbnail" class="content-thumb">
-            <img :src="item.media.thumbnail" alt="" loading="lazy" />
-          </div>
-          <div class="content-meta">
-            <span class="content-type">{{ item.contentType }}</span>
-            <span class="content-date">{{ formatDate(item.publishedAt) }}</span>
-          </div>
-          <h4>{{ item.title }}</h4>
-          <p>{{ item.excerpt || "New in the soup." }}</p>
-          <div class="content-footer">
-            <span class="content-author">{{ item.creatorName }}</span>
-            <a
-              v-if="item.contentUrl || item.media?.url"
-              class="content-link"
-              :href="item.media?.url || item.contentUrl"
-              target="_blank"
-              rel="noreferrer"
-            >
-              {{ formatAction(item.contentType) }}
-            </a>
-          </div>
-        </article>
+        <ContentCard v-for="item in items" :key="item.id" :item="item" />
       </div>
     </section>
   </div>
