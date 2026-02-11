@@ -228,8 +228,8 @@ onBeforeUnmount(() => {
           <RouterLink class="button ghost" :to="ownerSoupPath">
             Serve me my soup
           </RouterLink>
-          <RouterLink class="button ghost" to="/brew">
-            Brew my soup
+          <RouterLink class="button ghost" to="/make">
+            Make my soup
           </RouterLink>
         </div>
       </div>

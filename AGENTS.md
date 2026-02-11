@@ -3,6 +3,7 @@
 - Start every response with the wizard emoji "🧙" to signal context is active
 - Projects Use **pnpm**
 - Run pnpm build at the end of work on the web app only.
+- Web apps use file-based routing via `unplugin-vue-router`; page components live in `src/pages` (not `src/views`).
 
 ## Landing the Plane (Session Completion)
 

@@ -34,6 +34,11 @@ const error = ref<string | null>(null);
 const isSaving = ref(false);
 const finalHandle = ref<string>("");
 const isReady = ref(false);
+const showManualModal = ref(false);
+const manualFeedUrl = ref("");
+const manualName = ref("");
+const manualType = ref<"article" | "audio" | "video">("article");
+const manualError = ref<string | null>(null);
 
 const steps = [
   { title: "Add ingredients", subtitle: "Search, add, and tweak sources." },
@@ -104,15 +109,34 @@ function addCandidate(candidate: SourceCandidate) {
 }
 
 function addManualSource() {
-  selectedSources.value.push({
-    feedUrl: "",
-    sourceType: "article",
-    name: "",
-  });
+  showManualModal.value = true;
+  manualFeedUrl.value = "";
+  manualName.value = "";
+  manualType.value = "article";
+  manualError.value = null;
 }
 
 function removeSource(index: number) {
   selectedSources.value.splice(index, 1);
+}
+
+function closeManualModal() {
+  showManualModal.value = false;
+  manualError.value = null;
+}
+
+function addManualFromModal() {
+  const feedUrl = manualFeedUrl.value.trim();
+  if (!feedUrl) {
+    manualError.value = "Feed URL is required.";
+    return;
+  }
+  selectedSources.value.push({
+    feedUrl,
+    sourceType: manualType.value,
+    name: manualName.value.trim() || undefined,
+  });
+  closeManualModal();
 }
 
 async function saveSoup() {
@@ -163,7 +187,7 @@ async function saveSoup() {
 
     isReady.value = true;
   } catch (err) {
-    error.value = err instanceof Error ? err.message : "Failed to brew soup";
+    error.value = err instanceof Error ? err.message : "Failed to make soup";
   } finally {
     isSaving.value = false;
   }
@@ -218,15 +242,15 @@ function isSelected(candidate: SourceCandidate): boolean {
 </script>
 
 <template>
-  <div class="page brew-page">
+  <div class="page make-page">
     <div class="beta-banner">
-      <span class="beta-pill">Brew</span>
+      <span class="beta-pill">Make</span>
       <span>Build your soup in minutes.</span>
     </div>
 
-    <section class="hero soup-hero brew-hero">
-      <div class="brew-hero-grid">
-        <div class="brew-hero-copy">
+    <section class="hero soup-hero make-hero">
+      <div class="make-hero-grid">
+        <div class="make-hero-copy">
           <p class="eyebrow">Soup Wizard</p>
           <h1 class="hero-title">{{ steps[step].title }}</h1>
           <p class="hero-sub">{{ steps[step].subtitle }}</p>
@@ -244,7 +268,7 @@ function isSelected(candidate: SourceCandidate): boolean {
           </div>
         </div>
 
-        <div class="brew-hero-summary">
+        <div class="make-hero-summary">
           <h3>Ingredients</h3>
           <p class="muted">Everything you add shows up here.</p>
           <div v-if="selectedPreview.length" class="ingredient-list">
@@ -254,7 +278,16 @@ function isSelected(candidate: SourceCandidate): boolean {
               class="ingredient-row"
             >
               <span>{{ item.label }}</span>
-              <span class="badge">{{ item.type }}</span>
+              <div class="ingredient-meta">
+                <span class="badge">{{ item.type }}</span>
+                <button
+                  class="ingredient-remove"
+                  type="button"
+                  @click="removeSource(index)"
+                >
+                  Remove
+                </button>
+              </div>
             </div>
           </div>
           <p v-else class="muted">No ingredients yet.</p>
@@ -325,32 +358,8 @@ function isSelected(candidate: SourceCandidate): boolean {
           </div>
         </div>
         <div class="wizard-header">
-          <h3>Selected ingredients</h3>
           <button class="button ghost" type="button" @click="addManualSource">
             Add feed manually
-          </button>
-        </div>
-        <div
-          v-for="(source, index) in selectedSources"
-          :key="`${source.feedUrl}-${index}`"
-          class="source-row"
-        >
-          <input v-model="source.name" placeholder="Name" />
-          <input
-            v-model="source.feedUrl"
-            placeholder="https://username.substack.com/feed"
-          />
-          <select v-model="source.sourceType">
-            <option value="article">Article</option>
-            <option value="audio">Audio</option>
-            <option value="video">Video</option>
-          </select>
-          <button
-            class="button ghost"
-            type="button"
-            @click="removeSource(index)"
-          >
-            Remove
           </button>
         </div>
       </div>
@@ -361,6 +370,34 @@ function isSelected(candidate: SourceCandidate): boolean {
       </div>
 
     </section>
+
+    <div v-if="showManualModal" class="modal-overlay" @click.self="closeManualModal">
+      <div class="modal-card">
+        <h3>Add a feed</h3>
+        <p class="muted">Drop in a feed URL and we’ll treat it as an ingredient.</p>
+        <label class="field">
+          <span>Name (optional)</span>
+          <input v-model="manualName" placeholder="Creator or channel name" />
+        </label>
+        <label class="field">
+          <span>Feed URL</span>
+          <input v-model="manualFeedUrl" placeholder="https://username.substack.com/feed" />
+        </label>
+        <label class="field">
+          <span>Type</span>
+          <select v-model="manualType">
+            <option value="article">Article</option>
+            <option value="audio">Audio</option>
+            <option value="video">Video</option>
+          </select>
+        </label>
+        <p v-if="manualError" class="error">{{ manualError }}</p>
+        <div class="callout-actions">
+          <button class="button ghost" type="button" @click="closeManualModal">Cancel</button>
+          <button class="button primary" type="button" @click="addManualFromModal">Add feed</button>
+        </div>
+      </div>
+    </div>
 
     <section class="section wizard-footer">
       <div class="nav-row">

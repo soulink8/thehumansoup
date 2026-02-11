@@ -294,12 +294,12 @@ a {
   color: rgba(47, 42, 37, 0.6);
 }
 
-.brew-page .hero {
+.make-page .hero {
   align-items: flex-start;
   text-align: left;
 }
 
-.brew-hero-grid {
+.make-hero-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr);
   gap: 24px;
@@ -307,7 +307,7 @@ a {
   align-items: start;
 }
 
-.brew-hero-summary {
+.make-hero-summary {
   background: rgba(255, 250, 241, 0.95);
   border: 1px solid rgba(47, 42, 37, 0.12);
   border-radius: var(--radius-md);
@@ -329,6 +329,24 @@ a {
   gap: 12px;
   align-items: center;
   font-size: 14px;
+}
+
+.ingredient-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ingredient-remove {
+  border: none;
+  background: transparent;
+  color: rgba(47, 42, 37, 0.6);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ingredient-remove:hover {
+  color: var(--ink);
 }
 
 .stepper {
@@ -487,12 +505,41 @@ a {
   gap: 12px;
 }
 
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(47, 42, 37, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.modal-card {
+  width: min(520px, 100%);
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(47, 42, 37, 0.12);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--shadow);
+}
+
+.modal-card select {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(47, 42, 37, 0.2);
+}
+
 @media (max-width: 900px) {
   .source-row {
     grid-template-columns: 1fr;
   }
 
-  .brew-hero-grid {
+  .make-hero-grid {
     grid-template-columns: 1fr;
   }
 }
