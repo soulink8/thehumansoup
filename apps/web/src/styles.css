@@ -136,6 +136,93 @@ button.nav-link {
   background: rgba(255, 250, 241, 0.7);
 }
 
+/* Account dropdown */
+.account-dropdown {
+  position: relative;
+}
+
+.account-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  background: rgba(255, 250, 241, 0.9);
+  border: 1px solid rgba(47, 42, 37, 0.2);
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s ease;
+}
+
+.account-btn:hover {
+  background: rgba(47, 42, 37, 0.08);
+}
+
+.dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: 240px;
+  background: var(--white);
+  border: 1px solid rgba(47, 42, 37, 0.12);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  padding: 10px;
+  z-index: 200;
+}
+
+.dropdown-email {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 8px 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-email:hover {
+  text-decoration: underline;
+}
+
+.dropdown-sep {
+  height: 1px;
+  background: rgba(47, 42, 37, 0.12);
+  margin: 6px 0;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: none;
+}
+
+.dropdown-item:hover:not(:disabled) {
+  background: rgba(47, 42, 37, 0.08);
+}
+
+.dropdown-item.danger {
+  color: #b5462c;
+}
+
+.dropdown-item.danger:hover:not(:disabled) {
+  background: rgba(181, 70, 44, 0.1);
+}
+
 h1,
 h2,
 h3,

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AuthUser } from "../lib/auth";
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { fetchAuthSession, logout } from "../lib/auth";
@@ -11,28 +12,41 @@ const route = useRoute();
 const router = useRouter();
 
 const isAuthed = ref(false);
-const userLabel = ref<string | null>(null);
+const authUser = ref<AuthUser | null>(null);
+const accountMenuOpen = ref(false);
+
+function userLabel(user: AuthUser | null): string {
+  if (!user) return "Account";
+  if (user.displayName) return user.displayName;
+  if (user.handle) return `@${String(user.handle).replace(/^@/, "")}`;
+  if (user.email) return user.email;
+  return "Account";
+}
 
 async function refreshAuth() {
   const user = await fetchAuthSession(API_BASE);
   isAuthed.value = Boolean(user);
+  authUser.value = user;
+}
 
-  if (user?.displayName) {
-    userLabel.value = user.displayName;
-    return;
+function toggleAccountMenu() {
+  accountMenuOpen.value = !accountMenuOpen.value;
+}
+
+function closeAccountMenu() {
+  accountMenuOpen.value = false;
+}
+
+function onDocumentClick(event: MouseEvent) {
+  const target = event.target as HTMLElement | null;
+  if (!target) return;
+  if (!target.closest(".account-dropdown")) {
+    closeAccountMenu();
   }
-  if (user?.handle) {
-    userLabel.value = `@${String(user.handle).replace(/^@/, "")}`;
-    return;
-  }
-  if (user?.email) {
-    userLabel.value = user.email;
-    return;
-  }
-  userLabel.value = null;
 }
 
 async function handleLogout() {
+  closeAccountMenu();
   await logout(API_BASE);
   await refreshAuth();
   router.push("/");
@@ -41,16 +55,19 @@ async function handleLogout() {
 onMounted(() => {
   void refreshAuth();
   window.addEventListener("storage", refreshAuth);
+  document.addEventListener("click", onDocumentClick);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("storage", refreshAuth);
+  document.removeEventListener("click", onDocumentClick);
 });
 
 watch(
   () => route.fullPath,
   () => {
     void refreshAuth();
+    closeAccountMenu();
   },
 );
 </script>
@@ -59,19 +76,50 @@ watch(
   <header class="site-header">
     <div class="site-header-inner">
       <RouterLink to="/" class="brand">
-        <span class="brand-title">Human Soup</span>
+        <span class="brand-title">The Soup</span>
       </RouterLink>
       <nav class="site-nav" aria-label="Primary">
-        <RouterLink to="/" class="nav-link">Home</RouterLink>
-        <RouterLink to="/make" class="nav-link">Make</RouterLink>
-        <RouterLink v-if="isAuthed" to="/kitchen" class="nav-link">Kitchen</RouterLink>
-        <span v-if="isAuthed && userLabel" class="nav-user">{{ userLabel }}</span>
+        <RouterLink v-if="isAuthed" to="/kitchen" class="nav-link"
+          >Kitchen</RouterLink
+        >
         <RouterLink v-if="!isAuthed" to="/login" class="nav-link nav-cta">
           Sign in
         </RouterLink>
-        <button v-else class="nav-link nav-cta" type="button" @click="handleLogout">
-          Sign out
-        </button>
+        <div v-else class="account-dropdown">
+          <button
+            class="account-btn"
+            type="button"
+            aria-haspopup="menu"
+            :aria-expanded="accountMenuOpen ? 'true' : 'false'"
+            @click="toggleAccountMenu"
+          >
+            {{ userLabel(authUser) }} ▾
+          </button>
+          <div v-if="accountMenuOpen" class="dropdown-menu" role="menu">
+            <RouterLink
+              to="/account"
+              class="dropdown-email"
+              @click="closeAccountMenu"
+            >
+              {{ authUser?.email || userLabel(authUser) }}
+            </RouterLink>
+            <div class="dropdown-sep" />
+            <RouterLink
+              to="/account"
+              class="dropdown-item"
+              @click="closeAccountMenu"
+            >
+              Account page
+            </RouterLink>
+            <button
+              class="dropdown-item danger"
+              type="button"
+              @click="handleLogout"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
       </nav>
     </div>
   </header>

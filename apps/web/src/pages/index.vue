@@ -335,8 +335,8 @@ onBeforeUnmount(() => {
     </section>
 
     <section class="hero login-hero">
-      <p class="eyebrow">Attention Creators</p>
-      <h1 class="hero-title">You may add to the soup</h1>
+      <p class="eyebrow">Attention Sou-chef Creators</p>
+      <h1 class="hero-title">You may add your spice to THE HUMAN SOUP</h1>
       <RouterLink class="button primary" to="/login"> Sign in </RouterLink>
     </section>
 

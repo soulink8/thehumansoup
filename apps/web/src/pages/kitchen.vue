@@ -13,7 +13,11 @@ const handle = ref("");
 const displayName = ref("");
 const me3SiteUrl = ref("");
 const sources = ref([
-  { feedUrl: "", sourceType: "article" as "article" | "audio" | "video", name: "" },
+  {
+    feedUrl: "",
+    sourceType: "article" as "article" | "audio" | "video",
+    name: "",
+  },
 ]);
 
 const error = ref<string | null>(null);
@@ -110,15 +114,15 @@ onMounted(() => {
       <p class="eyebrow">The Soup For Creators</p>
       <h1 class="hero-title">Add to the soup</h1>
       <p class="hero-sub">
-        Drop your me3 site or paste your feed URLs. We will index it and send you
-        straight to your soup profile.
+        Drop your me3 site or paste your feed URLs. We will index it and send
+        you straight to your soup profile.
       </p>
     </section>
 
     <section class="wizard-card">
       <div class="kitchen-grid">
         <div class="kitchen-panel">
-          <h2>ME3 home base</h2>
+          <h2>ME3</h2>
           <p class="muted">
             Blog 3.0: publish once and your site becomes the source of truth.
           </p>
@@ -180,7 +184,12 @@ onMounted(() => {
       </div>
 
       <div class="kitchen-actions">
-        <button class="button primary" type="button" @click="submit" :disabled="isSaving">
+        <button
+          class="button primary"
+          type="button"
+          @click="submit"
+          :disabled="isSaving"
+        >
           {{ isSaving ? "Simmering..." : "Add to the soup" }}
         </button>
         <p v-if="error" class="error">{{ error }}</p>
