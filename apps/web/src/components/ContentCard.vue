@@ -10,6 +10,7 @@ type ContentItem = {
   publishedAt: string | null;
   media?: {
     url?: string;
+    thumbnail?: string;
   };
 };
 
@@ -35,16 +36,23 @@ const displayDate = computed(() => {
     day: "numeric",
   });
 });
+
+const thumbUrl = computed(() => props.item.media?.thumbnail || "");
+const thumbStyle = computed(() =>
+  thumbUrl.value ? { "--thumb-url": `url(${thumbUrl.value})` } : {},
+);
 </script>
 
 <template>
   <component
     :is="hasLink ? 'a' : 'article'"
     class="content-card"
+    :class="{ 'has-thumb': Boolean(thumbUrl) }"
     :data-type="displayType"
     :href="hasLink ? link : undefined"
     :target="hasLink ? '_blank' : undefined"
     :rel="hasLink ? 'noreferrer' : undefined"
+    :style="thumbStyle"
   >
     <div class="content-meta">
       <span class="content-type">{{ displayType }}</span>
