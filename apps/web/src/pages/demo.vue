@@ -5,7 +5,7 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 
 onMounted(() => {
-  router.replace("/kitchen/make");
+  router.replace("/soups/demo");
 });
 </script>
 

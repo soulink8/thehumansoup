@@ -9,6 +9,7 @@ import type { Env } from "../lib/types";
 import { requireUser } from "../lib/session";
 import {
   getSoupProfileByHandle,
+  listSoupProfilesByOwner,
   resolveSoupProfileInput,
   upsertSoupProfile,
   upsertSoupSources,
@@ -17,6 +18,23 @@ import { indexUserSources } from "../services/sourceIndexer";
 import { indexSite } from "../services/indexer";
 
 const kitchen = new Hono<{ Bindings: Env }>();
+
+kitchen.get("/kitchen/soups", async (c) => {
+  const auth = await requireUser(c);
+  if (!auth.ok) return c.json({ error: auth.error }, auth.status);
+
+  const profiles = await listSoupProfilesByOwner(c.env.DB, auth.userId);
+  return c.json({
+    soups: profiles.map((profile) => ({
+      id: profile.id,
+      name: profile.handle,
+      displayName: profile.display_name,
+      visibility: profile.visibility,
+      me3SiteUrl: profile.me3_site_url,
+      createdAt: profile.created_at,
+    })),
+  });
+});
 
 /**
  * POST /kitchen/submit
@@ -93,6 +111,7 @@ kitchen.post("/kitchen/submit", async (c) => {
     return c.json({
       status: "ok",
       handle: profile.handle,
+      soupPath: `/soups/${profile.handle}`,
       profile,
     });
   } catch (error) {

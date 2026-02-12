@@ -77,6 +77,8 @@ app.get("/", (c) => {
       soup_sources: "POST /soup/sources",
       soup_remove_source: "DELETE /soup/sources",
       soup_ingest: "POST /soup/ingest",
+      kitchen_soups: "GET /kitchen/soups",
+      kitchen_submit: "POST /kitchen/submit",
       ingest_sources: "POST /ingest/sources",
       ingest_ping: "POST /ingest/ping",
       ingest_register: "POST /ingest/register",

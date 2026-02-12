@@ -18,7 +18,7 @@ const mySoup = new Hono<{ Bindings: Env }>();
  * Returns a personalised feed for a handle.
  */
 mySoup.get("/my-soup/:handle", async (c) => {
-  const handle = c.req.param("handle");
+  const handle = c.req.param("handle").trim().replace(/^@+/, "").toLowerCase();
   const since = c.req.query("since");
   const limit = parseInt(c.req.query("limit") ?? "50", 10);
   const contentType = c.req.query("type");
@@ -33,6 +33,12 @@ mySoup.get("/my-soup/:handle", async (c) => {
   }> = [];
 
   const soup = await listSoupSourcesByHandle(c.env.DB, handle);
+  const demoSourceSet = handle === "demo" ? getDemoSourceSet("demo") : null;
+
+  if (!soup && !demoSourceSet) {
+    return c.json({ error: "Soup not found" }, 404);
+  }
+
   if (soup?.profile?.visibility === "private") {
     return c.json({ error: "Soup is private" }, 403);
   }
@@ -47,8 +53,7 @@ mySoup.get("/my-soup/:handle", async (c) => {
       addedVia: source.addedVia,
     }));
   } else {
-    const sourceSet = getDemoSourceSet(handle);
-    sources = sourceSet?.sources ?? [];
+    sources = demoSourceSet?.sources ?? [];
   }
 
   if (sources.length) {
@@ -81,7 +86,7 @@ mySoup.get("/my-soup/:handle", async (c) => {
     subscriberEmailHash: subscriberHash,
   });
   const displayName =
-    creator?.name ?? soup?.profile?.display_name ?? handle;
+    creator?.name ?? soup?.profile?.display_name ?? demoSourceSet?.displayName ?? handle;
 
   return c.json({
     handle,

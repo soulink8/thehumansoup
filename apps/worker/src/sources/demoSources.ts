@@ -13,8 +13,8 @@ export interface DemoSourceSet {
 }
 
 export const DEMO_SOURCES: Record<string, DemoSourceSet> = {
-  kieran: {
-    displayName: "Kieran",
+  demo: {
+    displayName: "Demo",
     sources: [
       // YouTube
       { feedUrl: "https://www.youtube.com/feeds/videos.xml?channel_id=UCFECM-p3CF81Tp_l2sJsiyg", type: "video" },

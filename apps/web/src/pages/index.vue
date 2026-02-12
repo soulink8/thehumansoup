@@ -42,12 +42,6 @@ type CreatorProfile = {
   lastPublishedAt?: string | null;
 };
 
-type OwnerProfile = {
-  handle: string;
-  name: string;
-  siteUrl: string;
-};
-
 const API_BASE =
   import.meta.env.VITE_SOUP_API_URL ??
   "https://thehumansoup-worker.kieranbutler.workers.dev";
@@ -63,7 +57,6 @@ const lookupError = ref<string | null>(null);
 const lookupProfile = ref<CreatorProfile | null>(null);
 const lookupContent = ref<ContentItem[]>([]);
 const typedTarget = ref<HTMLElement | null>(null);
-const owner = ref<OwnerProfile | null>(null);
 let typedInstance: Typed | null = null;
 
 const lastCrawlLabel = computed(() => {
@@ -85,10 +78,6 @@ const apiLabel = computed(() => {
     return API_BASE;
   }
 });
-
-const ownerSoupPath = computed(() =>
-  owner.value ? `/@${owner.value.handle}` : "/@kieran",
-);
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat().format(value);
@@ -131,14 +120,6 @@ async function loadData() {
   }
 }
 
-async function loadOwner() {
-  try {
-    owner.value = await fetchJson<OwnerProfile>("/owner");
-  } catch {
-    owner.value = null;
-  }
-}
-
 async function lookupSite() {
   if (!lookupUrl.value.trim()) return;
   lookupLoading.value = true;
@@ -164,7 +145,6 @@ async function lookupSite() {
 
 onMounted(() => {
   loadData();
-  loadOwner();
 
   const target = typedTarget.value;
   if (target) {
@@ -229,11 +209,8 @@ onBeforeUnmount(() => {
           </button>
         </form> -->
         <div class="hero-cta-row">
-          <RouterLink class="button primary" to="/make">
+          <RouterLink class="button primary" to="/kitchen/make">
             Make my soup
-          </RouterLink>
-          <RouterLink class="button ghost" :to="ownerSoupPath">
-            Serve me soup
           </RouterLink>
         </div>
       </div>

@@ -26,12 +26,6 @@ const mockContent = [
   },
 ];
 
-const mockOwner = {
-  handle: "kieran",
-  name: "Kieran",
-  siteUrl: "https://kieran.me",
-};
-
 function createMockFetch(responses: Record<string, unknown>) {
   return vi.fn((url: string) => {
     const path = url.replace(/^https?:\/\/[^/]+/, "");
@@ -64,9 +58,9 @@ describe("Index", () => {
     history: createMemoryHistory(),
     routes: [
       { path: "/", component: Index },
-      { path: "/make", component: { template: "<div>Make</div>" } },
+      { path: "/kitchen/make", component: { template: "<div>Make</div>" } },
       { path: "/login", component: { template: "<div>Login</div>" } },
-      { path: "/@:handle", component: { template: "<div>Profile</div>" } },
+      { path: "/soups/:name", component: { template: "<div>Soup</div>" } },
     ],
   });
 
@@ -76,7 +70,6 @@ describe("Index", () => {
       createMockFetch({
         "/stats": mockStats,
         "/discover/content?limit=6&offset=0": { content: mockContent },
-        "/owner": mockOwner,
       }),
     );
   });
@@ -94,7 +87,7 @@ describe("Index", () => {
     expect(wrapper.text()).toContain("The place agents swim for");
     expect(wrapper.text()).toContain("content.");
     expect(wrapper.text()).toContain("Make my soup");
-    expect(wrapper.text()).toContain("Serve me soup");
+    expect(wrapper.text()).not.toContain("Serve me soup");
   });
 
   it("loads and displays stats after mount", async () => {
@@ -134,9 +127,6 @@ describe("Index", () => {
         if (url.includes("/discover")) {
           return Promise.resolve({ ok: true, json: () => ({ content: [] }) });
         }
-        if (url.includes("/owner")) {
-          return Promise.resolve({ ok: true, json: () => mockOwner });
-        }
         return Promise.resolve({ ok: false, status: 404 });
       }),
     );
@@ -163,24 +153,11 @@ describe("Index", () => {
 
     await router.isReady();
 
-    const makeLink = wrapper.find('a[href="/make"]');
+    const makeLink = wrapper.find('a[href="/kitchen/make"]');
     const loginLink = wrapper.find('a[href="/login"]');
 
     expect(makeLink.exists()).toBe(true);
     expect(loginLink.exists()).toBe(true);
-  });
-
-  it("uses owner handle for Serve me soup link when owner loaded", async () => {
-    const wrapper = mount(Index, {
-      global: {
-        plugins: [router],
-      },
-    });
-
-    await router.isReady();
-    await new Promise((r) => setTimeout(r, 50));
-
-    expect(wrapper.find('a[href="/@kieran"]').exists()).toBe(true);
   });
 
   it("formats last crawl date in stats", async () => {
@@ -205,8 +182,8 @@ describe("Index", () => {
 
     await router.isReady();
 
-    expect(wrapper.text()).toContain("Attention Creators");
-    expect(wrapper.text()).toContain("You may add to the soup");
+    expect(wrapper.text()).toContain("Attention Sou-chef Creators");
+    expect(wrapper.text()).toContain("You may add your spice to THE HUMAN SOUP");
     expect(wrapper.text()).toContain("Sign in");
   });
 });

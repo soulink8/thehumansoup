@@ -31,19 +31,27 @@ export interface SoupSourceRecord {
   createdAt: string;
 }
 
+function normalizeHandle(value?: string | null): string | null {
+  if (!value) return null;
+  const normalized = value.trim().replace(/^@+/, "").toLowerCase();
+  return normalized.length ? normalized : null;
+}
+
 export async function resolveSoupProfileInput(input: {
   handle?: string;
   displayName?: string;
   me3SiteUrl?: string | null;
   visibility?: SoupVisibility;
 }): Promise<SoupProfileInput> {
+  const inputHandle = normalizeHandle(input.handle);
+
   if (input.me3SiteUrl) {
     const normalized = normalizeUrl(input.me3SiteUrl);
     const result = await fetchMe3Profile(normalized);
     if (!result.success || !result.profile) {
       throw new Error(result.error ?? "Failed to fetch me.json");
     }
-    const handle = result.profile.handle ?? input.handle;
+    const handle = inputHandle ?? normalizeHandle(result.profile.handle);
     if (!handle) {
       throw new Error("me3 profile missing handle");
     }
@@ -56,13 +64,13 @@ export async function resolveSoupProfileInput(input: {
     };
   }
 
-  if (!input.handle) {
+  if (!inputHandle) {
     throw new Error("handle is required");
   }
 
   return {
-    handle: input.handle,
-    displayName: input.displayName ?? input.handle,
+    handle: inputHandle,
+    displayName: input.displayName ?? inputHandle,
     me3SiteUrl: input.me3SiteUrl ?? null,
     visibility: input.visibility,
   };
@@ -140,6 +148,18 @@ export async function listSoupSourcesByHandle(
   if (!profile) return null;
   const sources = await listSoupSourcesByProfile(db, profile.id);
   return { profile, sources };
+}
+
+export async function listSoupProfilesByOwner(
+  db: D1Database,
+  ownerId: string,
+): Promise<DbSoupProfile[]> {
+  const result = await db
+    .prepare("SELECT * FROM soup_profiles WHERE owner_id = ? ORDER BY created_at DESC")
+    .bind(ownerId)
+    .all<DbSoupProfile>();
+
+  return result.results ?? [];
 }
 
 export async function upsertSoupSources(

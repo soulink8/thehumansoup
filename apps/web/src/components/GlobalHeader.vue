@@ -104,13 +104,6 @@ watch(
               {{ authUser?.email || userLabel(authUser) }}
             </RouterLink>
             <div class="dropdown-sep" />
-            <RouterLink
-              to="/account"
-              class="dropdown-item"
-              @click="closeAccountMenu"
-            >
-              Account page
-            </RouterLink>
             <button
               class="dropdown-item danger"
               type="button"

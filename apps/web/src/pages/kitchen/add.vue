@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
-import { fetchAuthSession, getAuthUser } from "../lib/auth";
+import { useRoute, useRouter } from "vue-router";
+import { fetchAuthSession, getAuthUser } from "../../lib/auth";
 
 const API_BASE =
   import.meta.env.VITE_SOUP_API_URL ??
   "https://thehumansoup-worker.kieranbutler.workers.dev";
 
 const router = useRouter();
+const route = useRoute();
 
 const handle = ref("");
 const displayName = ref("");
@@ -35,12 +36,12 @@ async function submit() {
   error.value = null;
   const session = await fetchAuthSession(API_BASE);
   if (!session) {
-    router.push("/login?redirect=/kitchen");
+    router.push("/login?redirect=/kitchen/add");
     return;
   }
 
   if (!me3SiteUrl.value.trim() && !handle.value.trim()) {
-    error.value = "Add a me3 site URL or claim a handle first.";
+    error.value = "Add a me3 site URL or set a soup name first.";
     return;
   }
 
@@ -67,7 +68,7 @@ async function submit() {
     });
 
     if (response.status === 401) {
-      router.push("/login?redirect=/kitchen");
+      router.push("/login?redirect=/kitchen/add");
       return;
     }
 
@@ -78,7 +79,7 @@ async function submit() {
 
     const data = await response.json();
     const finalHandle = String(data.handle || "").replace(/^@/, "");
-    await router.push(`/@${finalHandle}`);
+    await router.push(`/soups/${finalHandle}`);
   } catch (err) {
     error.value = err instanceof Error ? err.message : "Failed to save soup";
   } finally {
@@ -90,11 +91,15 @@ onMounted(() => {
   void (async () => {
     const session = await fetchAuthSession(API_BASE);
     if (!session) {
-      router.push("/login?redirect=/kitchen");
+      router.push("/login?redirect=/kitchen/add");
       return;
     }
 
     const user = session ?? getAuthUser();
+    const queryName = String(route.query.name || "").trim();
+    if (queryName && !handle.value) {
+      handle.value = queryName.replace(/^@+/, "").toLowerCase();
+    }
     if (user?.handle && !handle.value) {
       handle.value = user.handle;
     }
@@ -111,11 +116,10 @@ onMounted(() => {
 <template>
   <div class="page">
     <section class="hero">
-      <p class="eyebrow">The Soup For Creators</p>
-      <h1 class="hero-title">Add to the soup</h1>
+      <p class="eyebrow">Kitchen</p>
+      <h1 class="hero-title">Add creator sources</h1>
       <p class="hero-sub">
-        Drop your me3 site or paste your feed URLs. We will index it and send
-        you straight to your soup profile.
+        Link your me3 site and add RSS sources to update one of your soups.
       </p>
     </section>
 
@@ -135,8 +139,8 @@ onMounted(() => {
             />
           </label>
           <label class="field">
-            Handle (optional)
-            <input v-model="handle" type="text" placeholder="@yourhandle" />
+            Soup name
+            <input v-model="handle" type="text" placeholder="my-soup" />
           </label>
           <label class="field">
             Display name (optional)
@@ -258,21 +262,5 @@ onMounted(() => {
   flex-direction: column;
   gap: 10px;
   margin-top: 16px;
-}
-
-.muted {
-  color: var(--ink-soft);
-  font-size: 13px;
-}
-
-.error {
-  color: #a74732;
-  font-size: 13px;
-}
-
-@media (max-width: 640px) {
-  .source-row {
-    grid-template-columns: 1fr;
-  }
 }
 </style>
