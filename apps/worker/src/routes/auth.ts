@@ -4,11 +4,14 @@
  * POST /auth/request - Request a 6-digit code
  * POST /auth/verify - Verify code and get JWT
  * POST /auth/me3 - Link a me3 token and get JWT
+ * GET /auth/google/authorize - Initiate Google OAuth flow
+ * GET /auth/google/callback - Handle Google OAuth callback
  * GET /auth/session - Get the current session user
  * POST /auth/logout - Clear the session cookie
  */
 
 import { Hono } from "hono";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { Env } from "../lib/types";
 import { createJwt, generateCode, generateId, sha256 } from "../lib/crypto";
 import { sendAuthCodeEmail } from "../lib/email";
@@ -24,6 +27,53 @@ const auth = new Hono<{ Bindings: Env }>();
 
 const CODE_EXPIRATION_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
+const GOOGLE_STATE_COOKIE = "soup_google_oauth_state";
+const GOOGLE_STATE_TTL_SECONDS = 10 * 60;
+const DEFAULT_WEB_ORIGIN = "http://localhost:5173";
+const DEFAULT_REDIRECT_PATH = "/kitchen";
+const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
+const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
+
+function parseOrigins(value?: string): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+function normalizeOrigin(origin: string): string {
+  return origin.replace(/\/+$/, "");
+}
+
+function getFrontendOrigin(env: Env): string {
+  const [origin] = parseOrigins(env.SOUP_WEB_ORIGINS);
+  return normalizeOrigin(origin ?? DEFAULT_WEB_ORIGIN);
+}
+
+function sanitizeRedirect(redirect: string | null | undefined): string {
+  if (!redirect || !redirect.startsWith("/") || redirect.startsWith("//")) {
+    return DEFAULT_REDIRECT_PATH;
+  }
+  return redirect;
+}
+
+function getApiBaseFromRequest(requestUrl: string): string {
+  const url = new URL(requestUrl);
+  return `${url.protocol}//${url.host}`;
+}
+
+function oauthStateCookieOptions(requestUrl: string) {
+  const isSecure = new URL(requestUrl).protocol === "https:";
+  return {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: "Lax",
+    path: "/",
+    maxAge: GOOGLE_STATE_TTL_SECONDS,
+  } as const;
+}
 
 function requireEmailConfig(env: Env) {
   if (!env.POSTMARK_TOKEN || !env.POSTMARK_FROM_EMAIL) {
@@ -284,6 +334,206 @@ auth.post("/auth/me3", async (c) => {
   } catch (error) {
     console.error("Auth me3 error:", error);
     return c.json({ error: "Something went wrong" }, 500);
+  }
+});
+
+/**
+ * Start Google OAuth flow
+ * GET /auth/google/authorize
+ */
+auth.get("/auth/google/authorize", async (c) => {
+  const frontendOrigin = getFrontendOrigin(c.env);
+
+  if (!c.env.GOOGLE_CLIENT_ID || !c.env.GOOGLE_CLIENT_SECRET) {
+    return c.redirect(`${frontendOrigin}/login?error=oauth_not_configured`);
+  }
+
+  const redirectPath = sanitizeRedirect(c.req.query("redirect"));
+  const state = generateId();
+  const statePayload = `${state}:${encodeURIComponent(redirectPath)}`;
+
+  setCookie(c, GOOGLE_STATE_COOKIE, statePayload, oauthStateCookieOptions(c.req.url));
+
+  const redirectUri = `${getApiBaseFromRequest(c.req.url)}/auth/google/callback`;
+  const params = new URLSearchParams({
+    client_id: c.env.GOOGLE_CLIENT_ID,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    scope: "openid email profile",
+    state,
+    prompt: "select_account",
+  });
+
+  return c.redirect(`${GOOGLE_AUTH_URL}?${params.toString()}`);
+});
+
+/**
+ * Handle Google OAuth callback
+ * GET /auth/google/callback
+ */
+auth.get("/auth/google/callback", async (c) => {
+  const frontendOrigin = getFrontendOrigin(c.env);
+  const redirectToLoginError = (errorCode: string) =>
+    c.redirect(`${frontendOrigin}/login?error=${encodeURIComponent(errorCode)}`);
+
+  if (c.req.query("error")) {
+    return redirectToLoginError("oauth_denied");
+  }
+
+  const code = c.req.query("code");
+  const state = c.req.query("state");
+  const statePayload = getCookie(c, GOOGLE_STATE_COOKIE);
+
+  const stateCookieOptions = oauthStateCookieOptions(c.req.url);
+  deleteCookie(c, GOOGLE_STATE_COOKIE, {
+    path: stateCookieOptions.path,
+    secure: stateCookieOptions.secure,
+    sameSite: stateCookieOptions.sameSite,
+  });
+
+  if (!code || !state || !statePayload) {
+    return redirectToLoginError("missing_params");
+  }
+
+  const separatorIndex = statePayload.indexOf(":");
+  if (separatorIndex <= 0) {
+    return redirectToLoginError("invalid_state");
+  }
+
+  const expectedState = statePayload.slice(0, separatorIndex);
+  if (state !== expectedState) {
+    return redirectToLoginError("invalid_state");
+  }
+
+  let redirectPath = DEFAULT_REDIRECT_PATH;
+  try {
+    redirectPath = sanitizeRedirect(
+      decodeURIComponent(statePayload.slice(separatorIndex + 1)),
+    );
+  } catch {
+    return redirectToLoginError("invalid_state");
+  }
+
+  if (!c.env.GOOGLE_CLIENT_ID || !c.env.GOOGLE_CLIENT_SECRET) {
+    return redirectToLoginError("oauth_not_configured");
+  }
+
+  const redirectUri = `${getApiBaseFromRequest(c.req.url)}/auth/google/callback`;
+
+  let accessToken: string | null = null;
+  try {
+    const tokenResponse = await fetch(GOOGLE_TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: c.env.GOOGLE_CLIENT_ID,
+        client_secret: c.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: redirectUri,
+        grant_type: "authorization_code",
+      }).toString(),
+    });
+
+    if (!tokenResponse.ok) {
+      console.error(
+        "Google token exchange failed:",
+        tokenResponse.status,
+        await tokenResponse.text(),
+      );
+      return redirectToLoginError("token_exchange_failed");
+    }
+
+    const tokenData = (await tokenResponse.json()) as {
+      access_token?: string;
+    };
+    accessToken = tokenData.access_token ?? null;
+  } catch (error) {
+    console.error("Google token exchange threw:", error);
+    return redirectToLoginError("token_exchange_failed");
+  }
+
+  if (!accessToken) {
+    return redirectToLoginError("token_exchange_failed");
+  }
+
+  type GoogleUserInfo = {
+    id?: string;
+    email?: string | null;
+  };
+
+  let userInfo: GoogleUserInfo | null = null;
+  try {
+    const profileResponse = await fetch(GOOGLE_USERINFO_URL, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+    });
+
+    if (!profileResponse.ok) {
+      console.error(
+        "Google userinfo failed:",
+        profileResponse.status,
+        await profileResponse.text(),
+      );
+      return redirectToLoginError("user_info_failed");
+    }
+
+    userInfo = (await profileResponse.json()) as GoogleUserInfo;
+  } catch (error) {
+    console.error("Google userinfo threw:", error);
+    return redirectToLoginError("user_info_failed");
+  }
+
+  if (!userInfo?.id) {
+    return redirectToLoginError("user_info_failed");
+  }
+
+  const normalizedEmail =
+    typeof userInfo.email === "string" && userInfo.email.trim()
+      ? userInfo.email.toLowerCase().trim()
+      : `google_${userInfo.id}@oauth.thehumansoup.ai`;
+
+  try {
+    let user = await c.env.DB.prepare(
+      "SELECT id, email, me3_site_url FROM soup_users WHERE email = ?",
+    )
+      .bind(normalizedEmail)
+      .first<{ id: string; email: string | null; me3_site_url: string | null }>();
+
+    if (!user) {
+      const userId = generateId();
+      await c.env.DB.prepare(
+        `INSERT INTO soup_users (id, email, created_at, updated_at, last_login_at)
+         VALUES (?, ?, datetime('now'), datetime('now'), datetime('now'))`,
+      )
+        .bind(userId, normalizedEmail)
+        .run();
+
+      user = { id: userId, email: normalizedEmail, me3_site_url: null };
+    } else {
+      await c.env.DB.prepare(
+        "UPDATE soup_users SET updated_at = datetime('now'), last_login_at = datetime('now') WHERE id = ?",
+      )
+        .bind(user.id)
+        .run();
+    }
+
+    if (!c.env.JWT_SECRET) {
+      return redirectToLoginError("database_error");
+    }
+
+    const jwt = await createJwt(
+      { sub: user.id, email: user.email ?? normalizedEmail },
+      c.env.JWT_SECRET,
+      SESSION_TTL_SECONDS,
+    );
+    setSessionCookie(c, jwt);
+
+    return c.redirect(`${frontendOrigin}${redirectPath}`);
+  } catch (error) {
+    console.error("Google OAuth database error:", error);
+    return redirectToLoginError("database_error");
   }
 });
 

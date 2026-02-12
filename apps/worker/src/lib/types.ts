@@ -14,6 +14,8 @@ export interface Env {
   POSTMARK_STREAM: string;
   JWT_SECRET: string;
   SOUP_WEB_ORIGINS?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
 }
 
 // ── Database Row Types ─────────────────────────────────────
