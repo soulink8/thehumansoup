@@ -183,9 +183,7 @@ describe("Index", () => {
     await router.isReady();
 
     expect(wrapper.text()).toContain("Attention Sou-chef Creators");
-    expect(wrapper.text()).toContain(
-      "You may add your spice to THE HUMAN SOUP",
-    );
+    expect(wrapper.text()).toContain("You may add your spice to THE HUMAN SOUP");
     expect(wrapper.text()).toContain("Sign in");
   });
 });

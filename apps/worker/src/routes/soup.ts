@@ -41,7 +41,7 @@ soup.post("/soup/sources", async (c) => {
   if (!auth.ok) return c.json({ error: auth.error }, 401);
 
   let body: {
-    handle?: string;
+    name?: string;
     displayName?: string;
     me3SiteUrl?: string;
     visibility?: "public" | "unlisted" | "private";
@@ -64,7 +64,7 @@ soup.post("/soup/sources", async (c) => {
 
   try {
     const profileInput = await resolveSoupProfileInput({
-      handle: body.handle,
+      handle: body.name,
       displayName: body.displayName,
       me3SiteUrl: body.me3SiteUrl,
       visibility: body.visibility,
@@ -90,7 +90,7 @@ soup.post("/soup/sources", async (c) => {
 
     return c.json({
       status: "ok",
-      handle: profile.handle,
+      name: profile.handle,
       profile,
       sourcesAdded: count,
     });
@@ -108,18 +108,18 @@ soup.delete("/soup/sources", async (c) => {
   const auth = requireWriteKey(c);
   if (!auth.ok) return c.json({ error: auth.error }, 401);
 
-  let body: { handle?: string; feedUrl?: string };
+  let body: { name?: string; feedUrl?: string };
   try {
     body = await c.req.json<typeof body>();
   } catch {
     return c.json({ error: "Invalid JSON body" }, 400);
   }
 
-  if (!body.handle || !body.feedUrl) {
-    return c.json({ error: "handle and feedUrl are required" }, 400);
+  if (!body.name || !body.feedUrl) {
+    return c.json({ error: "name and feedUrl are required" }, 400);
   }
 
-  const soupProfile = await listSoupSourcesByHandle(c.env.DB, body.handle);
+  const soupProfile = await listSoupSourcesByHandle(c.env.DB, body.name);
   if (!soupProfile) {
     return c.json({ error: "Soup profile not found" }, 404);
   }
@@ -135,10 +135,10 @@ soup.delete("/soup/sources", async (c) => {
   if (creator?.id) {
     const subscriber = await c.env.DB
       .prepare("SELECT id FROM creators WHERE handle = ?")
-      .bind(body.handle)
+      .bind(body.name)
       .first<{ id: string }>();
     const subscriberId = subscriber?.id ?? null;
-    const subscriberHash = await hashEmail(`handle:${body.handle}`);
+    const subscriberHash = await hashEmail(`handle:${body.name}`);
 
     await c.env.DB
       .prepare(
@@ -156,30 +156,30 @@ soup.delete("/soup/sources", async (c) => {
 
 /**
  * POST /soup/ingest
- * Index sources for a handle.
+ * Index sources for a soup.
  */
 soup.post("/soup/ingest", async (c) => {
   const auth = requireWriteKey(c);
   if (!auth.ok) return c.json({ error: auth.error }, 401);
 
-  let body: { handle?: string };
+  let body: { name?: string };
   try {
     body = await c.req.json<typeof body>();
   } catch {
     return c.json({ error: "Invalid JSON body" }, 400);
   }
 
-  if (!body.handle) {
-    return c.json({ error: "handle is required" }, 400);
+  if (!body.name) {
+    return c.json({ error: "name is required" }, 400);
   }
 
-  const result = await indexUserSources(c.env.DB, body.handle, {
+  const result = await indexUserSources(c.env.DB, body.name, {
     limitPerFeed: 20,
   });
 
   return c.json({
     status: "ok",
-    handle: result.handle,
+    name: result.handle,
     feedsIndexed: result.feedsIndexed,
     itemsIndexed: result.itemsIndexed,
   });

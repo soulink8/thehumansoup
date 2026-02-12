@@ -149,7 +149,7 @@ async function saveSoup() {
       },
       credentials: "include",
       body: JSON.stringify({
-        handle: handle.value.trim() || undefined,
+        name: handle.value.trim() || undefined,
         displayName: handle.value.trim() || undefined,
         sources: selectedSources.value.map((source) => ({
           feedUrl: source.feedUrl.trim(),
@@ -171,7 +171,7 @@ async function saveSoup() {
       throw new Error(data.error || "Failed to save soup");
     }
     const data = await response.json();
-    finalHandle.value = cleanHandle(data.handle);
+    finalHandle.value = cleanHandle(data.name);
 
     await router.push(`/soups/${finalHandle.value}`);
   } catch (err) {
@@ -315,7 +315,7 @@ onMounted(async () => {
 
       <div v-if="step === 1" class="wizard-card">
         <label class="field">
-          <span>Bowl handle</span>
+          <span>Name your soup</span>
           <input v-model="handle" placeholder="kierans-soup" />
         </label>
         <p v-if="handleError" class="error">{{ handleError }}</p>
@@ -373,17 +373,26 @@ onMounted(async () => {
       </div>
     </section>
 
-    <div v-if="showManualModal" class="modal-overlay" @click.self="closeManualModal">
+    <div
+      v-if="showManualModal"
+      class="modal-overlay"
+      @click.self="closeManualModal"
+    >
       <div class="modal-card">
         <h3>Add a feed</h3>
-        <p class="muted">Drop in a feed URL and we’ll treat it as an ingredient.</p>
+        <p class="muted">
+          Drop in a feed URL and we’ll treat it as an ingredient.
+        </p>
         <label class="field">
           <span>Name (optional)</span>
           <input v-model="manualName" placeholder="Creator or channel name" />
         </label>
         <label class="field">
           <span>Feed URL</span>
-          <input v-model="manualFeedUrl" placeholder="https://username.substack.com/feed" />
+          <input
+            v-model="manualFeedUrl"
+            placeholder="https://username.substack.com/feed"
+          />
         </label>
         <label class="field">
           <span>Type</span>
@@ -395,8 +404,16 @@ onMounted(async () => {
         </label>
         <p v-if="manualError" class="error">{{ manualError }}</p>
         <div class="callout-actions">
-          <button class="button ghost" type="button" @click="closeManualModal">Cancel</button>
-          <button class="button primary" type="button" @click="addManualFromModal">Add feed</button>
+          <button class="button ghost" type="button" @click="closeManualModal">
+            Cancel
+          </button>
+          <button
+            class="button primary"
+            type="button"
+            @click="addManualFromModal"
+          >
+            Add feed
+          </button>
         </div>
       </div>
     </div>

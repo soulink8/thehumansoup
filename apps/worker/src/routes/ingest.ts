@@ -164,27 +164,27 @@ ingest.post("/ingest/register", async (c) => {
 
 /**
  * POST /ingest/sources
- * Manually refresh demo sources for a handle.
+ * Manually refresh demo sources for a soup.
  */
 ingest.post("/ingest/sources", async (c) => {
-  let body: { handle?: string };
+  let body: { name?: string };
   try {
-    body = await c.req.json<{ handle?: string }>();
+    body = await c.req.json<{ name?: string }>();
   } catch {
     return c.json({ error: "Invalid JSON body" }, 400);
   }
 
-  if (!body.handle) {
-    return c.json({ error: "handle is required" }, 400);
+  if (!body.name) {
+    return c.json({ error: "name is required" }, 400);
   }
 
-  const result = await indexUserSources(c.env.DB, body.handle, {
+  const result = await indexUserSources(c.env.DB, body.name, {
     limitPerFeed: 20,
   });
 
   return c.json({
     status: "ok",
-    handle: result.handle,
+    name: result.handle,
     feedsIndexed: result.feedsIndexed,
     itemsIndexed: result.itemsIndexed,
   });

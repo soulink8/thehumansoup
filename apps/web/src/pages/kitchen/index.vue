@@ -36,6 +36,12 @@ async function loadSoups() {
       credentials: "include",
     });
 
+    // Some deployments return 404 when the user has not created any soups yet.
+    if (response.status === 404) {
+      soups.value = [];
+      return;
+    }
+
     if (!response.ok) {
       throw new Error(`Failed to load soups: ${response.status}`);
     }

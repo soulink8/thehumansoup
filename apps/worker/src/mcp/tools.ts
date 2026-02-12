@@ -122,13 +122,13 @@ export const TOOLS = [
   {
     name: "soup_my_soup",
     description:
-      "Get a personalised soup feed for a handle. Use this when a human asks for their custom soup digest.",
+      "Get a personalised soup feed for a soup by name. Use this when a human asks for their custom soup digest.",
     inputSchema: {
       type: "object" as const,
       properties: {
-        handle: {
+        name: {
           type: "string",
-          description: "The handle to fetch (e.g. 'kieran')",
+          description: "The soup name to fetch (e.g. 'kieran')",
         },
         since: {
           type: "string",
@@ -144,7 +144,7 @@ export const TOOLS = [
           description: "Filter by content format",
         },
       },
-      required: ["handle"],
+      required: ["name"],
     },
   },
   {
@@ -183,7 +183,7 @@ export const TOOLS = [
   {
     name: "soup_add_sources",
     description:
-      "Add or update sources for a soup handle. Requires write access.",
+      "Add or update sources for a soup. Requires write access.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -191,9 +191,9 @@ export const TOOLS = [
           type: "string",
           description: "Write key for soup management",
         },
-        handle: {
+        name: {
           type: "string",
-          description: "Soup handle (e.g. 'kieran')",
+          description: "Soup name (e.g. 'kieran')",
         },
         display_name: {
           type: "string",
@@ -201,7 +201,7 @@ export const TOOLS = [
         },
         me3_site_url: {
           type: "string",
-          description: "Optional me3 site URL to sync handle",
+          description: "Optional me3 site URL to sync soup",
         },
         sources: {
           type: "array",
@@ -227,28 +227,28 @@ export const TOOLS = [
   },
   {
     name: "soup_remove_source",
-    description: "Remove a source from a soup handle. Requires write access.",
+    description: "Remove a source from a soup. Requires write access.",
     inputSchema: {
       type: "object" as const,
       properties: {
         write_key: { type: "string" },
-        handle: { type: "string" },
+        name: { type: "string" },
         feed_url: { type: "string" },
       },
-      required: ["write_key", "handle", "feed_url"],
+      required: ["write_key", "name", "feed_url"],
     },
   },
   {
     name: "soup_ingest",
     description:
-      "Ingest sources for a soup handle (index feeds). Requires write access.",
+      "Ingest sources for a soup (index feeds). Requires write access.",
     inputSchema: {
       type: "object" as const,
       properties: {
         write_key: { type: "string" },
-        handle: { type: "string" },
+        name: { type: "string" },
       },
-      required: ["write_key", "handle"],
+      required: ["write_key", "name"],
     },
   },
 ] as const;
@@ -314,21 +314,15 @@ export async function handleTool(
     }
 
     case "soup_my_soup": {
-      const handle = args.handle as string;
+      const soupName = args.name as string;
       const since = args.since as string | undefined;
       const limit = Math.min((args.limit as number) ?? 50, 200);
       const contentType = args.content_type as string | undefined;
 
-      const creator = await getCreatorByHandle(db, handle);
-      const subscriberId = creator?.id ?? handle;
-      const subscriberHash = await hashEmail(`handle:${handle}`);
-      const feed = await getFeed(db, subscriberId, {
-        since,
-        limit,
-        contentType,
-        subscriberEmailHash: subscriberHash,
-      });
-      const soupSources = await listSoupSourcesByHandle(db, handle);
+      const creator = await getCreatorByHandle(db, soupName);
+      const subscriberId = creator?.id ?? soupName;
+      const subscriberHash = await hashEmail(`handle:${soupName}`);
+      const soupSources = await listSoupSourcesByHandle(db, soupName);
       const sources =
         soupSources?.sources.map((source) => ({
           feedUrl: source.feedUrl,
@@ -337,12 +331,19 @@ export async function handleTool(
           siteUrl: source.siteUrl ?? undefined,
           addedBy: source.addedBy,
           addedVia: source.addedVia,
-        })) ?? getDemoSourceSet(handle)?.sources ?? [];
+        })) ?? getDemoSourceSet(soupName)?.sources ?? [];
+
+      const feed = await getFeed(db, subscriberId, {
+        since,
+        limit,
+        contentType,
+        subscriberEmailHash: subscriberHash,
+      });
 
       return text(
         JSON.stringify(
           {
-            handle,
+            name: soupName,
             items: feed.items,
             total: feed.total,
             since: feed.since,
@@ -397,7 +398,7 @@ export async function handleTool(
       }
 
       const profileInput = await resolveSoupProfileInput({
-        handle: args.handle as string | undefined,
+        handle: args.name as string | undefined,
         displayName: args.display_name as string | undefined,
         me3SiteUrl: args.me3_site_url as string | undefined,
       });
@@ -420,7 +421,7 @@ export async function handleTool(
 
       return text(
         JSON.stringify(
-          { status: "ok", handle: profile.handle, sourcesAdded: count },
+          { status: "ok", name: profile.handle, sourcesAdded: count },
           null,
           2,
         ),
@@ -431,9 +432,9 @@ export async function handleTool(
       if (!isWriteKeyValid(env, args.write_key as string | undefined)) {
         return text(JSON.stringify({ error: "Invalid write key" }));
       }
-      const handle = args.handle as string;
+      const soupName = args.name as string;
       const feedUrl = args.feed_url as string;
-      const soupProfile = await listSoupSourcesByHandle(db, handle);
+      const soupProfile = await listSoupSourcesByHandle(db, soupName);
       if (!soupProfile) {
         return text(JSON.stringify({ error: "Soup profile not found" }));
       }
@@ -445,8 +446,8 @@ export async function handleTool(
       if (!isWriteKeyValid(env, args.write_key as string | undefined)) {
         return text(JSON.stringify({ error: "Invalid write key" }));
       }
-      const handle = args.handle as string;
-      const result = await indexUserSources(db, handle, { limitPerFeed: 20 });
+      const soupName = args.name as string;
+      const result = await indexUserSources(db, soupName, { limitPerFeed: 20 });
       return text(JSON.stringify({ status: "ok", ...result }, null, 2));
     }
 

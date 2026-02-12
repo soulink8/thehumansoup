@@ -73,7 +73,7 @@ app.get("/", (c) => {
       profile: "GET /profile/:id",
       feed: "GET /feed/:subscriberId?since=2026-01-01",
       owner: "GET /owner",
-      my_soup: "GET /my-soup/:handle",
+      my_soup: "GET /my-soup/:name",
       soup_sources: "POST /soup/sources",
       soup_remove_source: "DELETE /soup/sources",
       soup_ingest: "POST /soup/ingest",

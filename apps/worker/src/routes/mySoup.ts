@@ -1,7 +1,7 @@
 /**
  * My Soup Routes
  *
- * Personalised feed for a handle, plus source metadata.
+ * Personalised feed for a soup (by name), plus source metadata.
  */
 
 import { Hono } from "hono";
@@ -14,11 +14,11 @@ import { listSoupSourcesByHandle } from "../services/soupStore";
 const mySoup = new Hono<{ Bindings: Env }>();
 
 /**
- * GET /my-soup/:handle
- * Returns a personalised feed for a handle.
+ * GET /my-soup/:name
+ * Returns a personalised feed for a soup.
  */
-mySoup.get("/my-soup/:handle", async (c) => {
-  const handle = c.req.param("handle").trim().replace(/^@+/, "").toLowerCase();
+mySoup.get("/my-soup/:name", async (c) => {
+  const name = c.req.param("name").trim().replace(/^@+/, "").toLowerCase();
   const since = c.req.query("since");
   const limit = parseInt(c.req.query("limit") ?? "50", 10);
   const contentType = c.req.query("type");
@@ -32,8 +32,8 @@ mySoup.get("/my-soup/:handle", async (c) => {
     addedVia?: string;
   }> = [];
 
-  const soup = await listSoupSourcesByHandle(c.env.DB, handle);
-  const demoSourceSet = handle === "demo" ? getDemoSourceSet("demo") : null;
+  const soup = await listSoupSourcesByHandle(c.env.DB, name);
+  const demoSourceSet = name === "demo" ? getDemoSourceSet("demo") : null;
 
   if (!soup && !demoSourceSet) {
     return c.json({ error: "Soup not found" }, 404);
@@ -72,13 +72,13 @@ mySoup.get("/my-soup/:handle", async (c) => {
     }
 
     if (creatorIds.length) {
-      await ensureSubscriptions(c.env.DB, handle, creatorIds);
+      await ensureSubscriptions(c.env.DB, name, creatorIds);
     }
   }
 
-  const creator = await getCreatorByHandle(c.env.DB, handle);
-  const subscriberId = creator?.id ?? handle;
-  const subscriberHash = await hashEmail(`handle:${handle}`);
+  const creator = await getCreatorByHandle(c.env.DB, name);
+  const subscriberId = creator?.id ?? name;
+  const subscriberHash = await hashEmail(`handle:${name}`);
   const feed = await getFeed(c.env.DB, subscriberId, {
     since: since || undefined,
     limit: Math.min(limit, 200),
@@ -86,10 +86,10 @@ mySoup.get("/my-soup/:handle", async (c) => {
     subscriberEmailHash: subscriberHash,
   });
   const displayName =
-    creator?.name ?? soup?.profile?.display_name ?? demoSourceSet?.displayName ?? handle;
+    creator?.name ?? soup?.profile?.display_name ?? demoSourceSet?.displayName ?? name;
 
   return c.json({
-    handle,
+    name,
     displayName,
     items: feed.items,
     total: feed.total,

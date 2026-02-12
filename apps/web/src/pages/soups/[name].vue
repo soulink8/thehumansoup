@@ -31,7 +31,7 @@ type SourceItem = {
 };
 
 type MySoupResponse = {
-  handle: string;
+  name: string;
   displayName: string;
   items: ContentItem[];
   total: number;
@@ -87,7 +87,7 @@ async function fetchSoup() {
     const data = (await response.json()) as MySoupResponse;
     items.value = data.items ?? [];
     sources.value = data.sources ?? [];
-    displayName.value = data.displayName || data.handle;
+    displayName.value = data.displayName || data.name;
     total.value = data.total ?? data.items?.length ?? 0;
   } catch (err) {
     error.value = err instanceof Error ? err.message : "Failed to load soup";

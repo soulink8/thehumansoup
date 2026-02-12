@@ -38,14 +38,14 @@ kitchen.get("/kitchen/soups", async (c) => {
 
 /**
  * POST /kitchen/submit
- * Body: { handle?, displayName?, me3SiteUrl?, sources?[] }
+ * Body: { name?, displayName?, me3SiteUrl?, sources?[] }
  */
 kitchen.post("/kitchen/submit", async (c) => {
   const auth = await requireUser(c);
   if (!auth.ok) return c.json({ error: auth.error }, auth.status);
 
   let body: {
-    handle?: string;
+    name?: string;
     displayName?: string;
     me3SiteUrl?: string;
     visibility?: "public" | "unlisted" | "private";
@@ -70,7 +70,7 @@ kitchen.post("/kitchen/submit", async (c) => {
     }
 
     const profileInput = await resolveSoupProfileInput({
-      handle: body.handle,
+      handle: body.name,
       displayName: body.displayName,
       me3SiteUrl: body.me3SiteUrl ?? auth.me3SiteUrl ?? undefined,
       visibility: body.visibility,
@@ -78,7 +78,7 @@ kitchen.post("/kitchen/submit", async (c) => {
 
     const existing = await getSoupProfileByHandle(c.env.DB, profileInput.handle);
     if (existing?.owner_id && existing.owner_id !== auth.userId) {
-      return c.json({ error: "Handle is already claimed" }, 409);
+      return c.json({ error: "Name is already claimed" }, 409);
     }
 
     const profile = await upsertSoupProfile(c.env.DB, {
@@ -110,7 +110,7 @@ kitchen.post("/kitchen/submit", async (c) => {
 
     return c.json({
       status: "ok",
-      handle: profile.handle,
+      name: profile.handle,
       soupPath: `/soups/${profile.handle}`,
       profile,
     });

@@ -190,7 +190,7 @@ onBeforeUnmount(() => {
         <span class="typed-text" ref="typedTarget">content.</span>
       </h1>
       <p class="hero-sub">
-        Waiters (AI agents) serve you soup (content), just how you like it.
+        <span style="text-decoration: line-through">AI agents</span> Waiters serve you <span style="text-decoration: line-through">content</span> Soup just how you like it.
       </p>
       <div class="hero-actions">
         <!-- <form class="lookup hero-lookup" @submit.prevent="lookupSite">

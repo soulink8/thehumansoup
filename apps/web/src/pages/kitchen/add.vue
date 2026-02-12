@@ -54,7 +54,7 @@ async function submit() {
       },
       credentials: "include",
       body: JSON.stringify({
-        handle: handle.value.trim() || undefined,
+        name: handle.value.trim() || undefined,
         displayName: displayName.value.trim() || undefined,
         me3SiteUrl: me3SiteUrl.value.trim() || undefined,
         sources: sources.value
@@ -78,8 +78,8 @@ async function submit() {
     }
 
     const data = await response.json();
-    const finalHandle = String(data.handle || "").replace(/^@/, "");
-    await router.push(`/soups/${finalHandle}`);
+    const finalName = String(data.name || "").replace(/^@/, "");
+    await router.push(`/soups/${finalName}`);
   } catch (err) {
     error.value = err instanceof Error ? err.message : "Failed to save soup";
   } finally {
