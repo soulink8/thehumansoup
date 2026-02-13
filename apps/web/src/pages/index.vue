@@ -57,7 +57,9 @@ const lookupError = ref<string | null>(null);
 const lookupProfile = ref<CreatorProfile | null>(null);
 const lookupContent = ref<ContentItem[]>([]);
 const typedTarget = ref<HTMLElement | null>(null);
+const typedSpiceTarget = ref<HTMLElement | null>(null);
 let typedInstance: Typed | null = null;
+let typedSpiceInstance: Typed | null = null;
 
 const lastCrawlLabel = computed(() => {
   if (!stats.value?.lastCrawl) return "Not yet";
@@ -169,10 +171,35 @@ onMounted(() => {
       });
     }
   }
+
+  const spiceTarget = typedSpiceTarget.value;
+  if (spiceTarget) {
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    if (prefersReducedMotion) {
+      spiceTarget.textContent = "spice";
+    } else {
+      spiceTarget.textContent = "";
+      typedSpiceInstance = new Typed(spiceTarget, {
+        strings: ["spice", "sauce"],
+        typeSpeed: 56,
+        backSpeed: 32,
+        backDelay: 1400,
+        startDelay: 400,
+        loop: true,
+        smartBackspace: true,
+        showCursor: true,
+        cursorChar: "▍",
+      });
+    }
+  }
 });
 
 onBeforeUnmount(() => {
   typedInstance?.destroy();
+  typedSpiceInstance?.destroy();
 });
 </script>
 
@@ -184,14 +211,17 @@ onBeforeUnmount(() => {
     </div> -->
 
     <section class="hero hero-centered">
-      <p class="eyebrow">The Human Soup</p>
       <h1 class="hero-title">
         The place agents swim for <br />
         <span class="typed-text" ref="typedTarget">content.</span>
       </h1>
-      <p class="hero-sub">
-        <span style="text-decoration: line-through">AI agents</span> Waiters serve you <span style="text-decoration: line-through">content</span> Soup just how you like it.
-      </p>
+      <h1 class="hero-sub">
+        <span style="text-decoration: line-through">AI agents</span> Waiters
+        serve soup
+        <span style="text-decoration: line-through">human content</span>
+        <br />
+        just how you like it.
+      </h1>
       <div class="hero-actions">
         <!-- <form class="lookup hero-lookup" @submit.prevent="lookupSite">
           <input
@@ -270,35 +300,31 @@ onBeforeUnmount(() => {
         </div>
         <div class="stats-grid">
           <div class="stat-card">
-            <p class="stat-label">Chefs (creators)</p>
+            <p class="stat-label">Humans</p>
             <p class="stat-value">
               {{ stats ? formatNumber(stats.creators) : "—" }}
             </p>
-            <p class="stat-note">Cooks of the soup.</p>
           </div>
           <div class="stat-card">
-            <p class="stat-label">Ingredients (posts)</p>
+            <p class="stat-label">Posts</p>
             <p class="stat-value">
               {{ stats ? formatNumber(stats.content) : "—" }}
             </p>
-            <p class="stat-note">Across all formats.</p>
           </div>
-          <div class="stat-card">
+          <!-- <div class="stat-card">
             <p class="stat-label">Subscriptions</p>
             <p class="stat-value">
               {{ stats ? formatNumber(stats.subscriptions) : "—" }}
             </p>
-            <p class="stat-note">Who follows who.</p>
-          </div>
+          </div> -->
           <div class="stat-card">
-            <p class="stat-label">Last stir</p>
+            <p class="stat-label">Last update</p>
             <p class="stat-value">{{ lastCrawlLabel }}</p>
-            <p class="stat-note">Source: {{ apiLabel }}</p>
           </div>
         </div>
       </div>
 
-      <div class="panel">
+      <!-- <div class="panel">
         <div class="panel-header">
           <h3>Fresh additions</h3>
           <span v-if="loading" class="panel-badge">Loading</span>
@@ -308,12 +334,15 @@ onBeforeUnmount(() => {
         <div class="content-grid">
           <ContentCard v-for="item in latest" :key="item.id" :item="item" />
         </div>
-      </div>
+      </div> -->
     </section>
 
     <section class="hero login-hero">
-      <p class="eyebrow">Attention Sou-chef Creators</p>
-      <h1 class="hero-title">You may add your spice to THE HUMAN SOUP</h1>
+      <p class="eyebrow">Attention Creators</p>
+      <h1 class="hero-title">
+        Add your <span class="typed-text" ref="typedSpiceTarget">spice</span>
+        <br />to THE SOUP
+      </h1>
       <RouterLink class="button primary" to="/login"> Sign in </RouterLink>
     </section>
 
