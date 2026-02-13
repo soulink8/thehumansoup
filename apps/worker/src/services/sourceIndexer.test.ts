@@ -37,6 +37,26 @@ describe("shouldSkipYouTubeShort", () => {
     expect(result).toBe(true);
   });
 
+  it("skips direct youtube shorts URLs", () => {
+    const result = shouldSkipYouTubeShort(youtubeFeed, {
+      id: "5",
+      title: "A short update",
+      link: "https://www.youtube.com/shorts/abc123xyz",
+    });
+
+    expect(result).toBe(true);
+  });
+
+  it("skips mobile youtube shorts URLs", () => {
+    const result = shouldSkipYouTubeShort(youtubeFeed, {
+      id: "6",
+      title: "Another short update",
+      link: "https://m.youtube.com/shorts/abc123xyz",
+    });
+
+    expect(result).toBe(true);
+  });
+
   it("does not apply shorts filtering to non-youtube feeds", () => {
     const result = shouldSkipYouTubeShort("https://example.com/feed.xml", {
       id: "4",

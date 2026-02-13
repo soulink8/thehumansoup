@@ -246,6 +246,10 @@ export function shouldSkipYouTubeShort(
 ): boolean {
   if (!isYouTubeFeedUrl(sourceFeedUrl)) return false;
 
+  if (isYouTubeShortUrl(item.link) || isYouTubeShortUrl(item.enclosureUrl)) {
+    return true;
+  }
+
   if (
     typeof item.durationSeconds === "number" &&
     item.durationSeconds > 0 &&
@@ -387,6 +391,25 @@ function isYouTubeFeedUrl(value: string): boolean {
     );
   } catch {
     return value.includes("youtube.com/feeds/videos.xml");
+  }
+}
+
+function isYouTubeShortUrl(value?: string): boolean {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    if (
+      host !== "youtube.com" &&
+      host !== "www.youtube.com" &&
+      host !== "m.youtube.com"
+    ) {
+      return false;
+    }
+    const path = url.pathname.toLowerCase();
+    return path === "/shorts" || path.startsWith("/shorts/");
+  } catch {
+    return /https?:\/\/(?:www\.|m\.)?youtube\.com\/shorts(?:\/|$)/i.test(value);
   }
 }
 

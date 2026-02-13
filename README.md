@@ -4,6 +4,21 @@ An AI-traversable content index for any site with a [me.json](https://me3.app/pr
 
 The Human Soup aggregates `me.json` profiles and content from me3 sites into a structured content graph that AI agents can swim through to discover creators, content, and subscription relationships on behalf of their humans.
 
+## Direction (Agent-First Index)
+
+The Human Soup is evolving toward an agent-first index, where retrieval quality is measured by whether an agent can answer real questions with trustworthy citations.
+
+- `me3` remains the long-term source of truth for direct, sovereign publishing.
+- External platforms (YouTube, Substack, podcasts, RSS) are useful adapters for early corpus density.
+- The index should prioritize structured signals over raw content blobs.
+
+### Important Boundary
+
+This repo uses `bd`/Beads for software issue tracking. That is separate from index architecture.
+
+- `bd` = coding task and workflow management.
+- Human Soup indexing model = content ingestion, normalization, trust, and retrieval.
+
 ## Architecture
 
 ```
@@ -11,6 +26,42 @@ me3 Sites (me.json) ──→ Indexer ──→ Content Graph (D1) ──→ RES
 ```
 
 **Sites are sovereign.** The soup indexes references, never stores full content. The `me.json` on each site is the source of truth.
+
+## Signal Record v1 (Index Unit)
+
+To keep the first validation loop simple, each indexed item should produce a compact `Signal Record` for agents:
+
+- `claim`: Main idea in one sentence.
+- `why_it_matters`: Why this is useful in one sentence.
+- `source_url`: Canonical source URL.
+- `published_at`: ISO date/time when available.
+- `content_type`: `article|note|video|audio|image|link`.
+- `trust_level`: `high|med|low`.
+
+This aligns with current `me3` protocol fields such as `posts.type`, `publishedAt`, and `excerpt`, while staying compatible with external source adapters.
+
+## First Validation Loop (20/10 Test)
+
+Before adding architectural complexity, run a lightweight quality test:
+
+1. Select 20 indexed items.
+2. Create one `Signal Record v1` per item.
+3. Ask 10 real user questions the index should answer.
+4. Score each answer for `useful` (`yes|no`).
+5. Score each answer for `cited` (`yes|no`).
+6. Score each answer for `trustworthy` (`yes|no`).
+7. Improve the record format once, then retest.
+
+Success criteria for v1:
+
+- >= 70% useful answers.
+- >= 90% cited answers.
+- Low-trust sources do not dominate outputs.
+- Responses support decisions, not just summaries.
+
+Detailed runbook: `docs/signal-record-v1-test.md`.
+Question bank: `docs/signal-record-v1-questions.md`.
+Scorecard template: `docs/signal-record-v1-scorecard.csv`.
 
 ## Quick Start
 
