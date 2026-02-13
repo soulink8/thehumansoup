@@ -8,3 +8,6 @@ dist/
 .DS_Store
 apps/worker/wrangler.toml
 AGENTS.md
+docs/test-data/results/*
+!docs/test-data/results/signal-record-v1-eval-report-latest.json
+!docs/test-data/results/signal-record-v1-scorecard-auto-latest.csv

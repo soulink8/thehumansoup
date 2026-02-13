@@ -1,0 +1,11 @@
+question_id,question,useful,cited,trustworthy,notes
+Q1,What are the strongest arguments for and against topic X this month?,no,yes,yes,top_score=2; citations=3; transcripts_used=0
+Q2,"Which creators are most consistent on topic Y, and why?",no,yes,yes,top_score=2; citations=3; transcripts_used=0
+Q3,What changed recently in area Z that should influence my decisions?,no,yes,yes,top_score=2; citations=3; transcripts_used=0
+Q4,What are the top three practical actions I should take this week based on these sources?,no,yes,yes,top_score=2; citations=3; transcripts_used=0
+Q5,Which viewpoints are likely overrepresented in my current index?,no,yes,yes,top_score=2; citations=3; transcripts_used=0
+Q6,"Where do trusted sources disagree, and what assumptions differ?",no,yes,yes,top_score=2; citations=3; transcripts_used=0
+Q7,What content in the index is outdated for my current decision?,no,yes,yes,top_score=2; citations=3; transcripts_used=0
+Q8,Which creators should I follow directly on me3 for long-term signal quality?,yes,yes,yes,top_score=4; citations=3; transcripts_used=0
+Q9,What high-signal content did I miss in the last 14 days?,yes,yes,yes,top_score=4; citations=3; transcripts_used=0
+Q10,"What should I read next if I want balanced context, not just reinforcement?",yes,yes,yes,top_score=4; citations=3; transcripts_used=0

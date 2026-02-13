@@ -1,0 +1,316 @@
+{
+  "created_at": "2026-02-13T12:10:26.690Z",
+  "input": {
+    "records_path": "docs/test-data/signal-record-v1-batch-001.jsonl",
+    "questions_path": "docs/signal-record-v1-questions.md",
+    "transcripts_path": null,
+    "records_count": 20,
+    "questions_count": 10
+  },
+  "metrics": {
+    "total_questions": 10,
+    "useful_yes": 3,
+    "useful_pct": 30,
+    "cited_yes": 10,
+    "cited_pct": 100,
+    "trustworthy_yes": 10,
+    "trustworthy_pct": 100,
+    "pass_thresholds": {
+      "useful": false,
+      "cited": true,
+      "trustworthy": true
+    }
+  },
+  "results": [
+    {
+      "question_id": "Q1",
+      "question": "What are the strongest arguments for and against topic X this month?",
+      "useful": "no",
+      "cited": "yes",
+      "trustworthy": "yes",
+      "notes": "top_score=2; citations=3; transcripts_used=0",
+      "top_records": [
+        {
+          "id": "44445005-9e3f-4686-a35f-4fc84b099002",
+          "title": "Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681",
+          "source_url": "https://www.youtube.com/watch?v=4_hltigsYfE",
+          "trust_level": "med"
+        },
+        {
+          "id": "c2093c0b-8faa-4d99-8987-6958e284e647",
+          "title": "The Hidden Pattern Behind The Chaos In Our World (And What It Reveals)",
+          "source_url": "https://www.youtube.com/watch?v=8olqjjaTk1o",
+          "trust_level": "med"
+        },
+        {
+          "id": "b8497f48-ea16-4450-8172-96ca1eaf3ce2",
+          "title": "7000 Irish medics in Australia while HSE recruits staff from abroad",
+          "source_url": "https://www.youtube.com/watch?v=jjLKrn_sDEI",
+          "trust_level": "med"
+        }
+      ],
+      "answer_preview": "- Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681 (https://www.youtube.com/watch?v=4_hltigsYfE)\n- The Hidden Pattern Behind The Chaos In Our World (And What It Reveals) (https://www.youtube.com/watch?v=8olqjjaTk1o)\n- 7000 Irish medics in Australia while HSE recruits staff from abroad (https://www.youtube.com/watch?v=jjLKrn_sDEI)"
+    },
+    {
+      "question_id": "Q2",
+      "question": "Which creators are most consistent on topic Y, and why?",
+      "useful": "no",
+      "cited": "yes",
+      "trustworthy": "yes",
+      "notes": "top_score=2; citations=3; transcripts_used=0",
+      "top_records": [
+        {
+          "id": "44445005-9e3f-4686-a35f-4fc84b099002",
+          "title": "Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681",
+          "source_url": "https://www.youtube.com/watch?v=4_hltigsYfE",
+          "trust_level": "med"
+        },
+        {
+          "id": "c2093c0b-8faa-4d99-8987-6958e284e647",
+          "title": "The Hidden Pattern Behind The Chaos In Our World (And What It Reveals)",
+          "source_url": "https://www.youtube.com/watch?v=8olqjjaTk1o",
+          "trust_level": "med"
+        },
+        {
+          "id": "b8497f48-ea16-4450-8172-96ca1eaf3ce2",
+          "title": "7000 Irish medics in Australia while HSE recruits staff from abroad",
+          "source_url": "https://www.youtube.com/watch?v=jjLKrn_sDEI",
+          "trust_level": "med"
+        }
+      ],
+      "answer_preview": "- Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681 (https://www.youtube.com/watch?v=4_hltigsYfE)\n- The Hidden Pattern Behind The Chaos In Our World (And What It Reveals) (https://www.youtube.com/watch?v=8olqjjaTk1o)\n- 7000 Irish medics in Australia while HSE recruits staff from abroad (https://www.youtube.com/watch?v=jjLKrn_sDEI)"
+    },
+    {
+      "question_id": "Q3",
+      "question": "What changed recently in area Z that should influence my decisions?",
+      "useful": "no",
+      "cited": "yes",
+      "trustworthy": "yes",
+      "notes": "top_score=2; citations=3; transcripts_used=0",
+      "top_records": [
+        {
+          "id": "44445005-9e3f-4686-a35f-4fc84b099002",
+          "title": "Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681",
+          "source_url": "https://www.youtube.com/watch?v=4_hltigsYfE",
+          "trust_level": "med"
+        },
+        {
+          "id": "c2093c0b-8faa-4d99-8987-6958e284e647",
+          "title": "The Hidden Pattern Behind The Chaos In Our World (And What It Reveals)",
+          "source_url": "https://www.youtube.com/watch?v=8olqjjaTk1o",
+          "trust_level": "med"
+        },
+        {
+          "id": "b8497f48-ea16-4450-8172-96ca1eaf3ce2",
+          "title": "7000 Irish medics in Australia while HSE recruits staff from abroad",
+          "source_url": "https://www.youtube.com/watch?v=jjLKrn_sDEI",
+          "trust_level": "med"
+        }
+      ],
+      "answer_preview": "- Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681 (https://www.youtube.com/watch?v=4_hltigsYfE)\n- The Hidden Pattern Behind The Chaos In Our World (And What It Reveals) (https://www.youtube.com/watch?v=8olqjjaTk1o)\n- 7000 Irish medics in Australia while HSE recruits staff from abroad (https://www.youtube.com/watch?v=jjLKrn_sDEI)"
+    },
+    {
+      "question_id": "Q4",
+      "question": "What are the top three practical actions I should take this week based on these sources?",
+      "useful": "no",
+      "cited": "yes",
+      "trustworthy": "yes",
+      "notes": "top_score=2; citations=3; transcripts_used=0",
+      "top_records": [
+        {
+          "id": "44445005-9e3f-4686-a35f-4fc84b099002",
+          "title": "Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681",
+          "source_url": "https://www.youtube.com/watch?v=4_hltigsYfE",
+          "trust_level": "med"
+        },
+        {
+          "id": "c2093c0b-8faa-4d99-8987-6958e284e647",
+          "title": "The Hidden Pattern Behind The Chaos In Our World (And What It Reveals)",
+          "source_url": "https://www.youtube.com/watch?v=8olqjjaTk1o",
+          "trust_level": "med"
+        },
+        {
+          "id": "b8497f48-ea16-4450-8172-96ca1eaf3ce2",
+          "title": "7000 Irish medics in Australia while HSE recruits staff from abroad",
+          "source_url": "https://www.youtube.com/watch?v=jjLKrn_sDEI",
+          "trust_level": "med"
+        }
+      ],
+      "answer_preview": "- Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681 (https://www.youtube.com/watch?v=4_hltigsYfE)\n- The Hidden Pattern Behind The Chaos In Our World (And What It Reveals) (https://www.youtube.com/watch?v=8olqjjaTk1o)\n- 7000 Irish medics in Australia while HSE recruits staff from abroad (https://www.youtube.com/watch?v=jjLKrn_sDEI)"
+    },
+    {
+      "question_id": "Q5",
+      "question": "Which viewpoints are likely overrepresented in my current index?",
+      "useful": "no",
+      "cited": "yes",
+      "trustworthy": "yes",
+      "notes": "top_score=2; citations=3; transcripts_used=0",
+      "top_records": [
+        {
+          "id": "44445005-9e3f-4686-a35f-4fc84b099002",
+          "title": "Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681",
+          "source_url": "https://www.youtube.com/watch?v=4_hltigsYfE",
+          "trust_level": "med"
+        },
+        {
+          "id": "c2093c0b-8faa-4d99-8987-6958e284e647",
+          "title": "The Hidden Pattern Behind The Chaos In Our World (And What It Reveals)",
+          "source_url": "https://www.youtube.com/watch?v=8olqjjaTk1o",
+          "trust_level": "med"
+        },
+        {
+          "id": "b8497f48-ea16-4450-8172-96ca1eaf3ce2",
+          "title": "7000 Irish medics in Australia while HSE recruits staff from abroad",
+          "source_url": "https://www.youtube.com/watch?v=jjLKrn_sDEI",
+          "trust_level": "med"
+        }
+      ],
+      "answer_preview": "- Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681 (https://www.youtube.com/watch?v=4_hltigsYfE)\n- The Hidden Pattern Behind The Chaos In Our World (And What It Reveals) (https://www.youtube.com/watch?v=8olqjjaTk1o)\n- 7000 Irish medics in Australia while HSE recruits staff from abroad (https://www.youtube.com/watch?v=jjLKrn_sDEI)"
+    },
+    {
+      "question_id": "Q6",
+      "question": "Where do trusted sources disagree, and what assumptions differ?",
+      "useful": "no",
+      "cited": "yes",
+      "trustworthy": "yes",
+      "notes": "top_score=2; citations=3; transcripts_used=0",
+      "top_records": [
+        {
+          "id": "44445005-9e3f-4686-a35f-4fc84b099002",
+          "title": "Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681",
+          "source_url": "https://www.youtube.com/watch?v=4_hltigsYfE",
+          "trust_level": "med"
+        },
+        {
+          "id": "c2093c0b-8faa-4d99-8987-6958e284e647",
+          "title": "The Hidden Pattern Behind The Chaos In Our World (And What It Reveals)",
+          "source_url": "https://www.youtube.com/watch?v=8olqjjaTk1o",
+          "trust_level": "med"
+        },
+        {
+          "id": "b8497f48-ea16-4450-8172-96ca1eaf3ce2",
+          "title": "7000 Irish medics in Australia while HSE recruits staff from abroad",
+          "source_url": "https://www.youtube.com/watch?v=jjLKrn_sDEI",
+          "trust_level": "med"
+        }
+      ],
+      "answer_preview": "- Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681 (https://www.youtube.com/watch?v=4_hltigsYfE)\n- The Hidden Pattern Behind The Chaos In Our World (And What It Reveals) (https://www.youtube.com/watch?v=8olqjjaTk1o)\n- 7000 Irish medics in Australia while HSE recruits staff from abroad (https://www.youtube.com/watch?v=jjLKrn_sDEI)"
+    },
+    {
+      "question_id": "Q7",
+      "question": "What content in the index is outdated for my current decision?",
+      "useful": "no",
+      "cited": "yes",
+      "trustworthy": "yes",
+      "notes": "top_score=2; citations=3; transcripts_used=0",
+      "top_records": [
+        {
+          "id": "44445005-9e3f-4686-a35f-4fc84b099002",
+          "title": "Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681",
+          "source_url": "https://www.youtube.com/watch?v=4_hltigsYfE",
+          "trust_level": "med"
+        },
+        {
+          "id": "c2093c0b-8faa-4d99-8987-6958e284e647",
+          "title": "The Hidden Pattern Behind The Chaos In Our World (And What It Reveals)",
+          "source_url": "https://www.youtube.com/watch?v=8olqjjaTk1o",
+          "trust_level": "med"
+        },
+        {
+          "id": "b8497f48-ea16-4450-8172-96ca1eaf3ce2",
+          "title": "7000 Irish medics in Australia while HSE recruits staff from abroad",
+          "source_url": "https://www.youtube.com/watch?v=jjLKrn_sDEI",
+          "trust_level": "med"
+        }
+      ],
+      "answer_preview": "- Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681 (https://www.youtube.com/watch?v=4_hltigsYfE)\n- The Hidden Pattern Behind The Chaos In Our World (And What It Reveals) (https://www.youtube.com/watch?v=8olqjjaTk1o)\n- 7000 Irish medics in Australia while HSE recruits staff from abroad (https://www.youtube.com/watch?v=jjLKrn_sDEI)"
+    },
+    {
+      "question_id": "Q8",
+      "question": "Which creators should I follow directly on me3 for long-term signal quality?",
+      "useful": "yes",
+      "cited": "yes",
+      "trustworthy": "yes",
+      "notes": "top_score=4; citations=3; transcripts_used=0",
+      "top_records": [
+        {
+          "id": "0ed698b3-a0c2-4236-b2e9-bf21f10c01a9",
+          "title": "Basic income for arts given randomly, not by quality",
+          "source_url": "https://www.youtube.com/watch?v=TfOW5JHPgc0",
+          "trust_level": "med"
+        },
+        {
+          "id": "44445005-9e3f-4686-a35f-4fc84b099002",
+          "title": "Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681",
+          "source_url": "https://www.youtube.com/watch?v=4_hltigsYfE",
+          "trust_level": "med"
+        },
+        {
+          "id": "c2093c0b-8faa-4d99-8987-6958e284e647",
+          "title": "The Hidden Pattern Behind The Chaos In Our World (And What It Reveals)",
+          "source_url": "https://www.youtube.com/watch?v=8olqjjaTk1o",
+          "trust_level": "med"
+        }
+      ],
+      "answer_preview": "- Basic income for arts given randomly, not by quality (https://www.youtube.com/watch?v=TfOW5JHPgc0)\n- Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681 (https://www.youtube.com/watch?v=4_hltigsYfE)\n- The Hidden Pattern Behind The Chaos In Our World (And What It Reveals) (https://www.youtube.com/watch?v=8olqjjaTk1o)"
+    },
+    {
+      "question_id": "Q9",
+      "question": "What high-signal content did I miss in the last 14 days?",
+      "useful": "yes",
+      "cited": "yes",
+      "trustworthy": "yes",
+      "notes": "top_score=4; citations=3; transcripts_used=0",
+      "top_records": [
+        {
+          "id": "486b21e9-b5ed-49b9-8172-ff781bf2553f",
+          "title": "Claude Opus 4.6 vs. GPT-5.3 Codex: How I shipped 93,000 lines of code in 5 days",
+          "source_url": "https://www.lennysnewsletter.com/p/claude-opus-46-vs-gpt-53-codex-how",
+          "trust_level": "med"
+        },
+        {
+          "id": "b2d9d13f-7f7a-483b-b614-9b7c9cb514ec",
+          "title": "Steve Yegge on AI Agents and the Future of Software Engineering",
+          "source_url": "https://newsletter.pragmaticengineer.com/p/steve-yegge-on-ai-agents-and-the",
+          "trust_level": "med"
+        },
+        {
+          "id": "b6f5468c-8610-4f25-87cd-302b201130cf",
+          "title": "Things are getting kinda crazy",
+          "source_url": "https://charleseisenstein.substack.com/p/things-are-getting-kinda-crazy",
+          "trust_level": "med"
+        }
+      ],
+      "answer_preview": "- Claude Opus 4.6 vs. GPT-5.3 Codex: How I shipped 93,000 lines of code in 5 days (https://www.lennysnewsletter.com/p/claude-opus-46-vs-gpt-53-codex-how)\n- Steve Yegge on AI Agents and the Future of Software Engineering (https://newsletter.pragmaticengineer.com/p/steve-yegge-on-ai-agents-and-the)\n- Things are getting kinda crazy (https://charleseisenstein.substack.com/p/things-are-getting-kinda-crazy)"
+    },
+    {
+      "question_id": "Q10",
+      "question": "What should I read next if I want balanced context, not just reinforcement?",
+      "useful": "yes",
+      "cited": "yes",
+      "trustworthy": "yes",
+      "notes": "top_score=4; citations=3; transcripts_used=0",
+      "top_records": [
+        {
+          "id": "0ed698b3-a0c2-4236-b2e9-bf21f10c01a9",
+          "title": "Basic income for arts given randomly, not by quality",
+          "source_url": "https://www.youtube.com/watch?v=TfOW5JHPgc0",
+          "trust_level": "med"
+        },
+        {
+          "id": "b6f5468c-8610-4f25-87cd-302b201130cf",
+          "title": "Things are getting kinda crazy",
+          "source_url": "https://charleseisenstein.substack.com/p/things-are-getting-kinda-crazy",
+          "trust_level": "med"
+        },
+        {
+          "id": "44445005-9e3f-4686-a35f-4fc84b099002",
+          "title": "Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681",
+          "source_url": "https://www.youtube.com/watch?v=4_hltigsYfE",
+          "trust_level": "med"
+        }
+      ],
+      "answer_preview": "- Basic income for arts given randomly, not by quality (https://www.youtube.com/watch?v=TfOW5JHPgc0)\n- Things are getting kinda crazy (https://charleseisenstein.substack.com/p/things-are-getting-kinda-crazy)\n- Canada Reels from Its Deadliest School Shooting in Decades as the Epstein Files Escalate — SF681 (https://www.youtube.com/watch?v=4_hltigsYfE)"
+    }
+  ]
+}

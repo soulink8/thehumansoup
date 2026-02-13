@@ -6,6 +6,29 @@ Use this small test to validate retrieval quality before adding more indexing co
 
 Test whether agents can answer real questions from structured records with citations and trust awareness.
 
+## Automated Run
+
+Run the evaluation pipeline:
+
+```bash
+pnpm eval:signal-record-v1
+```
+
+Optional transcript input (JSONL with `source_url` + `transcript`):
+
+```bash
+pnpm eval:signal-record-v1 -- --transcripts docs/test-data/youtube-transcripts.jsonl
+```
+
+Example format:
+
+- `docs/test-data/youtube-transcripts.example.jsonl`
+
+Outputs are written to:
+
+- `docs/test-data/results/signal-record-v1-eval-report-latest.json`
+- `docs/test-data/results/signal-record-v1-scorecard-auto-latest.csv`
+
 ## Dataset
 
 - Sample size: 20 indexed items
@@ -73,6 +96,8 @@ Score each answer with `yes` or `no`:
 Use this score sheet:
 
 - `docs/signal-record-v1-scorecard.csv`
+
+You can still use the manual score sheet for human override, but `eval:signal-record-v1` now generates an automated scorecard for repeatable baseline checks.
 
 ## Pass Threshold (v1)
 

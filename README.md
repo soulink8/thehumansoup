@@ -62,6 +62,7 @@ Success criteria for v1:
 Detailed runbook: `docs/signal-record-v1-test.md`.
 Question bank: `docs/signal-record-v1-questions.md`.
 Scorecard template: `docs/signal-record-v1-scorecard.csv`.
+Automation command: `pnpm eval:signal-record-v1`.
 
 ## Quick Start
 
