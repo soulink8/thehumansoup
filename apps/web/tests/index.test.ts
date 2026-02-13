@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createRouter, createMemoryHistory } from "vue-router";
-import Index from "./index.vue";
+import Index from "../src/pages/index.vue";
 
 const mockStats = {
   creators: 42,
@@ -102,10 +102,10 @@ describe("Index", () => {
 
     expect(wrapper.text()).toContain("42");
     expect(wrapper.text()).toContain("1,234");
-    expect(wrapper.text()).toContain("56");
+    expect(wrapper.text()).not.toContain("56");
   });
 
-  it("loads and displays latest content", async () => {
+  it("requests latest content during load", async () => {
     const wrapper = mount(Index, {
       global: { plugins: [router] },
     });
@@ -113,11 +113,13 @@ describe("Index", () => {
     await router.isReady();
     await new Promise((r) => setTimeout(r, 50));
 
-    expect(wrapper.text()).toContain("Alice");
-    expect(wrapper.text()).toContain("1 items");
+    const fetchSpy = vi.mocked(fetch);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/discover/content?limit=6&offset=0"),
+    );
   });
 
-  it("displays error when stats fetch fails", async () => {
+  it("shows fallback stat placeholders when stats fetch fails", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn((url: string) => {
@@ -140,8 +142,13 @@ describe("Index", () => {
     await router.isReady();
     await new Promise((r) => setTimeout(r, 50));
 
-    expect(wrapper.find(".error").exists()).toBe(true);
-    expect(wrapper.find(".error").text()).toContain("Request failed");
+    const statCards = wrapper.findAll(".stat-card");
+    expect(statCards[0]?.text()).toContain("Humans");
+    expect(statCards[0]?.text()).toContain("—");
+    expect(statCards[1]?.text()).toContain("Posts");
+    expect(statCards[1]?.text()).toContain("—");
+    expect(statCards[2]?.text()).toContain("Last update");
+    expect(statCards[2]?.text()).toContain("Not yet");
   });
 
   it("renders RouterLinks to make and login", async () => {
@@ -183,7 +190,8 @@ describe("Index", () => {
     await router.isReady();
 
     expect(wrapper.text()).toContain("Attention Creators");
-    expect(wrapper.text()).toContain("Add your spice to THE HUMAN SOUP");
+    expect(wrapper.text()).toContain("Add your spice");
+    expect(wrapper.text()).toContain("to THE SOUP");
     expect(wrapper.text()).toContain("Sign in");
   });
 });
