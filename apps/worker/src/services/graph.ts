@@ -367,6 +367,12 @@ function toContentResponse(
             thumbnail: row.media_thumbnail,
           }
         : undefined,
+    transcript: row.transcript_text
+      ? {
+          text: row.transcript_text,
+          language: row.transcript_language,
+        }
+      : undefined,
   };
 }
 

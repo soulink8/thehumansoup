@@ -4,6 +4,10 @@ import { parseFeed } from "./rss";
 import type { ParsedFeed, ParsedFeedItem } from "./rss";
 import { hashEmail, normalizeUrl, uuid } from "../lib/me3";
 import { listSoupSourcesByHandle } from "./soupStore";
+import {
+  extractYouTubeVideoId,
+  fetchYouTubeTranscript,
+} from "./youtubeTranscript";
 
 export interface IndexSourcesResult {
   handle: string;
@@ -13,6 +17,7 @@ export interface IndexSourcesResult {
 }
 
 const MIN_LONG_FORM_VIDEO_SECONDS = 180;
+const DEFAULT_TRANSCRIPT_ATTEMPT_BUDGET = 4;
 
 export function getDemoSourceSet(handle: string): DemoSourceSet | null {
   return DEMO_SOURCES[handle] ?? null;
@@ -21,7 +26,7 @@ export function getDemoSourceSet(handle: string): DemoSourceSet | null {
 export async function indexUserSources(
   db: D1Database,
   handle: string,
-  options: { limitPerFeed?: number } = {},
+  options: { limitPerFeed?: number; transcriptAttemptBudget?: number } = {},
 ): Promise<IndexSourcesResult> {
   const sources = await getSourcesForHandle(db, handle);
   if (!sources.length) {
@@ -29,12 +34,18 @@ export async function indexUserSources(
   }
 
   const limitPerFeed = options.limitPerFeed ?? 20;
+  const transcriptBudget = {
+    remaining: Math.max(
+      0,
+      options.transcriptAttemptBudget ?? DEFAULT_TRANSCRIPT_ATTEMPT_BUDGET,
+    ),
+  };
   const creatorIds: string[] = [];
   let feedsIndexed = 0;
   let itemsIndexed = 0;
 
   for (const source of sources) {
-    const result = await indexFeed(db, source, limitPerFeed);
+    const result = await indexFeed(db, source, limitPerFeed, transcriptBudget);
     if (result) {
       creatorIds.push(result.creatorId);
       feedsIndexed++;
@@ -106,6 +117,7 @@ async function indexFeed(
   db: D1Database,
   source: DemoSource,
   limitPerFeed: number,
+  transcriptBudget: { remaining: number },
 ): Promise<{ creatorId: string; itemsIndexed: number } | null> {
   const response = await fetch(source.feedUrl, {
     headers: {
@@ -116,6 +128,7 @@ async function indexFeed(
   });
 
   if (!response.ok) {
+    response.body?.cancel();
     console.warn(`[soup] RSS fetch failed ${response.status}: ${source.feedUrl}`);
     return null;
   }
@@ -170,7 +183,7 @@ async function indexFeed(
 
     const existing = await db
       .prepare(
-        "SELECT id, title, excerpt, content_type, media_url, media_thumbnail, published_at FROM content WHERE creator_id = ? AND slug = ?",
+        "SELECT id, title, excerpt, content_type, media_url, media_thumbnail, published_at, transcript_text, transcript_language FROM content WHERE creator_id = ? AND slug = ?",
       )
       .bind(creatorId, slug)
       .first<{
@@ -181,7 +194,32 @@ async function indexFeed(
         media_url: string | null;
         media_thumbnail: string | null;
         published_at: string | null;
+        transcript_text: string | null;
+        transcript_language: string | null;
       }>();
+
+    let transcriptText = existing?.transcript_text ?? null;
+    let transcriptLanguage = existing?.transcript_language ?? null;
+
+    if (
+      source.type === "video" &&
+      isYouTubeFeedUrl(source.feedUrl) &&
+      !transcriptText &&
+      transcriptBudget.remaining > 0
+    ) {
+      const videoId =
+        extractYouTubeVideoId(item.link) ??
+        extractYouTubeVideoId(item.enclosureUrl) ??
+        extractYouTubeVideoId(item.id);
+      if (videoId) {
+        transcriptBudget.remaining -= 1;
+        const transcript = await fetchYouTubeTranscript(videoId);
+        if (transcript?.text) {
+          transcriptText = transcript.text;
+          transcriptLanguage = transcript.language;
+        }
+      }
+    }
 
     if (existing) {
       if (
@@ -190,12 +228,14 @@ async function indexFeed(
         existing.content_type !== source.type ||
         existing.media_url !== mediaUrl ||
         existing.media_thumbnail !== (thumbnailUrl ?? null) ||
-        existing.published_at !== publishedAt
+        existing.published_at !== publishedAt ||
+        existing.transcript_text !== transcriptText ||
+        existing.transcript_language !== transcriptLanguage
       ) {
         await db
           .prepare(
             `UPDATE content
-             SET title = ?, excerpt = ?, content_type = ?, media_url = ?, media_thumbnail = ?, published_at = ?, content_url = ?, updated_at = datetime('now')
+             SET title = ?, excerpt = ?, content_type = ?, media_url = ?, media_thumbnail = ?, published_at = ?, content_url = ?, transcript_text = ?, transcript_language = ?, updated_at = datetime('now')
              WHERE id = ?`,
           )
           .bind(
@@ -206,6 +246,8 @@ async function indexFeed(
             thumbnailUrl ?? null,
             publishedAt,
             contentUrl,
+            transcriptText,
+            transcriptLanguage,
             existing.id,
           )
           .run();
@@ -215,8 +257,8 @@ async function indexFeed(
       await db
         .prepare(
           `INSERT INTO content
-           (id, creator_id, slug, title, excerpt, content_type, file_path, content_url, published_at, media_url, media_thumbnail)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, creator_id, slug, title, excerpt, content_type, file_path, content_url, published_at, media_url, media_thumbnail, transcript_text, transcript_language)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           uuid(),
@@ -230,6 +272,8 @@ async function indexFeed(
           publishedAt,
           mediaUrl,
           thumbnailUrl ?? null,
+          transcriptText,
+          transcriptLanguage,
         )
         .run();
       itemsIndexed++;

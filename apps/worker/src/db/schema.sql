@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS content (
   media_url TEXT,
   media_duration INTEGER,
   media_thumbnail TEXT,
+  transcript_text TEXT,
+  transcript_language TEXT,
   indexed_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(creator_id, slug)

@@ -46,7 +46,8 @@ SELECT
   content_type,
   published_at,
   title,
-  excerpt
+  excerpt,
+  transcript_text AS transcript
 FROM content
 ORDER BY COALESCE(published_at, indexed_at) DESC
 LIMIT 20;

@@ -8,6 +8,8 @@ const DEFAULT_QUESTIONS_PATH = "docs/signal-record-v1-questions.md";
 const DEFAULT_OUTPUT_DIR = "docs/test-data/results";
 const DEFAULT_TRANSCRIPTS_PATH = "";
 const TOP_K = 3;
+const RECENT_WINDOW_DAYS = 14;
+const OLD_WINDOW_DAYS = 60;
 
 const STOP_WORDS = new Set([
   "a",
@@ -45,6 +47,33 @@ const STOP_WORDS = new Set([
   "you",
   "your",
 ]);
+
+const POSITIVE_STANCE_MARKERS = [
+  "benefit",
+  "improve",
+  "growth",
+  "opportunity",
+  "solution",
+  "success",
+  "better",
+  "supports",
+  "effective",
+  "bullish",
+];
+
+const NEGATIVE_STANCE_MARKERS = [
+  "risk",
+  "problem",
+  "worse",
+  "crisis",
+  "decline",
+  "danger",
+  "fails",
+  "broken",
+  "harm",
+  "bearish",
+  "chaos",
+];
 
 function parseArgs(argv) {
   const args = {
@@ -145,6 +174,62 @@ function tokenize(text) {
     .filter((token) => token.length > 1 && !STOP_WORDS.has(token));
 }
 
+function tokenOverlap(questionTokens, recordTokens) {
+  if (!questionTokens.length || !recordTokens.length) return 0;
+  const recordSet = new Set(recordTokens);
+  let count = 0;
+  for (const token of questionTokens) {
+    if (recordSet.has(token)) count++;
+  }
+  return count;
+}
+
+function detectIntent(question) {
+  const q = question.toLowerCase();
+  if (q.includes("against") || q.includes("disagree") || q.includes("assumptions differ")) {
+    return "debate";
+  }
+  if (q.includes("consistent") || q.includes("follow directly")) {
+    return "creator_consistency";
+  }
+  if (q.includes("changed recently") || q.includes("last 14 days") || q.includes("miss")) {
+    return "recency";
+  }
+  if (q.includes("outdated")) {
+    return "outdated";
+  }
+  if (q.includes("overrepresented") || q.includes("balanced context")) {
+    return "diversity";
+  }
+  if (q.includes("actions i should") || q.includes("top three practical actions")) {
+    return "actions";
+  }
+  if (q.includes("what should i read next") || q.includes("read next")) {
+    return "recommendation";
+  }
+  return "default";
+}
+
+function trustScore(level) {
+  if (level === "high") return 2;
+  if (level === "med") return 1;
+  return 0;
+}
+
+function resolveTranscript(record, transcriptMap) {
+  const sidecar =
+    typeof record?.source_url === "string"
+      ? transcriptMap.get(record.source_url)
+      : undefined;
+  const inline =
+    typeof record?.transcript === "string"
+      ? record.transcript
+      : typeof record?.transcript_text === "string"
+      ? record.transcript_text
+      : undefined;
+  return sidecar ?? inline ?? null;
+}
+
 function buildRecordText(record, transcript) {
   return [
     record.title,
@@ -158,22 +243,180 @@ function buildRecordText(record, transcript) {
     .join(" ");
 }
 
-function scoreRecord(questionTokens, recordTokens, record, transcript) {
-  if (questionTokens.length === 0) return 0;
-  const tokenSet = new Set(recordTokens);
-  let overlap = 0;
+function parseDateMs(value) {
+  if (!value) return null;
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? ms : null;
+}
 
-  for (const token of questionTokens) {
-    if (tokenSet.has(token)) overlap++;
+function computeStanceScore(tokens) {
+  const set = new Set(tokens);
+  const positive = POSITIVE_STANCE_MARKERS.filter((marker) => set.has(marker)).length;
+  const negative = NEGATIVE_STANCE_MARKERS.filter((marker) => set.has(marker)).length;
+  return positive - negative;
+}
+
+function buildCorpus(records, transcriptMap) {
+  const creatorCounts = new Map();
+  const metas = [];
+
+  for (const record of records) {
+    const creatorId = record.creator_id ?? "unknown";
+    creatorCounts.set(creatorId, (creatorCounts.get(creatorId) ?? 0) + 1);
   }
 
-  const overlapScore = overlap * 2;
-  const trustBoost =
-    record.trust_level === "high" ? 2 : record.trust_level === "med" ? 1 : 0;
-  const citationBoost = record.source_url ? 1 : 0;
-  const transcriptBoost = transcript ? 1 : 0;
+  const maxCreatorCount = Math.max(1, ...creatorCounts.values());
 
-  return overlapScore + trustBoost + citationBoost + transcriptBoost;
+  const publishedValues = records
+    .map((record) => parseDateMs(record.published_at))
+    .filter((value) => value !== null);
+  const newestPublishedAt = publishedValues.length
+    ? Math.max(...publishedValues)
+    : Date.now();
+  const oldestPublishedAt = publishedValues.length
+    ? Math.min(...publishedValues)
+    : newestPublishedAt;
+  const dateRange = Math.max(1, newestPublishedAt - oldestPublishedAt);
+
+  for (const record of records) {
+    const transcript = resolveTranscript(record, transcriptMap);
+    const text = buildRecordText(record, transcript);
+    const tokens = tokenize(text);
+    const publishedAtMs = parseDateMs(record.published_at);
+    const recencyScore =
+      publishedAtMs === null ? 0.2 : (publishedAtMs - oldestPublishedAt) / dateRange;
+
+    metas.push({
+      record,
+      tokens,
+      transcriptPresent: Boolean(transcript),
+      publishedAtMs,
+      recencyScore,
+      trust: trustScore(record.trust_level),
+      creatorCount: creatorCounts.get(record.creator_id ?? "unknown") ?? 1,
+      creatorConsistency: (creatorCounts.get(record.creator_id ?? "unknown") ?? 1) / maxCreatorCount,
+      diversityBoost: 1 - (creatorCounts.get(record.creator_id ?? "unknown") ?? 1) / maxCreatorCount,
+      stanceScore: computeStanceScore(tokens),
+      ageDays:
+        publishedAtMs === null
+          ? null
+          : Math.max(0, (Date.now() - publishedAtMs) / (1000 * 60 * 60 * 24)),
+    });
+  }
+
+  return {
+    metas,
+    maxCreatorCount,
+  };
+}
+
+function scoreByIntent(meta, questionTokens, intent) {
+  const overlap = tokenOverlap(questionTokens, meta.tokens);
+  const relevanceScore = overlap * 2;
+  const transcriptBonus = meta.transcriptPresent ? 1 : 0;
+  const citationBonus = meta.record.source_url ? 1 : 0;
+
+  switch (intent) {
+    case "creator_consistency":
+      return (
+        relevanceScore +
+        meta.creatorConsistency * 4 +
+        meta.trust * 1.5 +
+        meta.recencyScore +
+        citationBonus +
+        transcriptBonus
+      );
+    case "recency":
+      return (
+        relevanceScore +
+        meta.recencyScore * 4 +
+        meta.trust +
+        citationBonus +
+        transcriptBonus
+      );
+    case "outdated":
+      return (
+        relevanceScore +
+        (meta.ageDays !== null && meta.ageDays > OLD_WINDOW_DAYS ? 3 : 0) +
+        meta.trust +
+        citationBonus +
+        transcriptBonus
+      );
+    case "diversity":
+      return (
+        relevanceScore +
+        meta.diversityBoost * 4 +
+        meta.trust +
+        meta.recencyScore +
+        citationBonus +
+        transcriptBonus
+      );
+    case "debate":
+      return (
+        relevanceScore +
+        Math.abs(meta.stanceScore) * 2 +
+        meta.trust +
+        meta.recencyScore +
+        citationBonus +
+        transcriptBonus
+      );
+    case "actions":
+    case "recommendation":
+      return (
+        relevanceScore +
+        meta.trust * 2 +
+        meta.recencyScore * 2 +
+        meta.creatorConsistency +
+        citationBonus +
+        transcriptBonus
+      );
+    default:
+      return (
+        relevanceScore +
+        meta.trust +
+        meta.recencyScore +
+        citationBonus +
+        transcriptBonus
+      );
+  }
+}
+
+function selectTopWithDiversity(scored, limit) {
+  const sorted = [...scored].sort((a, b) => b.score - a.score);
+  const selected = [];
+  const usedCreators = new Set();
+
+  for (const item of sorted) {
+    if (selected.length >= limit) break;
+
+    const creatorId = item.meta.record.creator_id ?? "unknown";
+    const wantDiversity = selected.length < 2;
+    if (wantDiversity && usedCreators.has(creatorId)) {
+      continue;
+    }
+
+    selected.push(item);
+    usedCreators.add(creatorId);
+  }
+
+  if (selected.length < limit) {
+    for (const item of sorted) {
+      if (selected.length >= limit) break;
+      if (selected.some((entry) => entry.meta.record.id === item.meta.record.id)) {
+        continue;
+      }
+      selected.push(item);
+    }
+  }
+
+  return selected;
+}
+
+function hasContradiction(selected) {
+  const stances = selected.map((item) => item.meta.stanceScore);
+  const hasPositive = stances.some((value) => value > 0);
+  const hasNegative = stances.some((value) => value < 0);
+  return hasPositive && hasNegative;
 }
 
 function toYesNo(value) {
@@ -189,37 +432,64 @@ function summariseRecords(records) {
     .join("\n");
 }
 
-function evaluateQuestion(question, records, transcriptMap) {
+function evaluateQuestion(question, corpus) {
+  const intent = detectIntent(question.question);
   const questionTokens = tokenize(question.question);
-  const ranked = records
-    .map((record) => {
-      const transcript = record.source_url
-        ? transcriptMap.get(record.source_url)
-        : undefined;
-      const recordText = buildRecordText(record, transcript);
-      const recordTokens = tokenize(recordText);
-      const score = scoreRecord(questionTokens, recordTokens, record, transcript);
-      return { record, score, transcriptUsed: Boolean(transcript) };
-    })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, TOP_K);
 
-  const topRecords = ranked.map((item) => item.record);
+  const scored = corpus.metas.map((meta) => ({
+    meta,
+    score: scoreByIntent(meta, questionTokens, intent),
+  }));
+
+  const selected = selectTopWithDiversity(scored, TOP_K);
+  const topRecords = selected.map((item) => item.meta.record);
   const citations = topRecords
     .map((record) => record.source_url)
     .filter((value) => typeof value === "string");
   const trustLevels = topRecords.map((record) => record.trust_level ?? "med");
+  const uniqueCreators = new Set(
+    topRecords.map((record) => record.creator_id ?? "unknown"),
+  ).size;
 
-  const topScore = ranked[0]?.score ?? 0;
+  const topScore = selected[0]?.score ?? 0;
   const lowTrustCount = trustLevels.filter((t) => t === "low").length;
-  const transcriptHits = ranked.filter((item) => item.transcriptUsed).length;
+  const transcriptHits = selected.filter((item) => item.meta.transcriptPresent).length;
+  const contradiction = hasContradiction(selected);
+  const recentCount = selected.filter(
+    (item) => item.meta.ageDays !== null && item.meta.ageDays <= RECENT_WINDOW_DAYS,
+  ).length;
+  const oldCount = selected.filter(
+    (item) => item.meta.ageDays !== null && item.meta.ageDays > OLD_WINDOW_DAYS,
+  ).length;
 
-  const useful =
-    topScore >= 4 &&
-    topRecords.length >= 2 &&
-    citations.length >= 2 &&
-    questionTokens.length > 0;
   const cited = citations.length > 0;
+
+  let useful;
+  switch (intent) {
+    case "debate":
+      useful = cited && uniqueCreators >= 2 && (contradiction || topScore >= 5);
+      break;
+    case "creator_consistency":
+      useful = cited && uniqueCreators >= 2 && selected.some((item) => item.meta.creatorCount >= 2);
+      break;
+    case "recency":
+      useful = cited && recentCount >= 2;
+      break;
+    case "outdated":
+      useful = cited && recentCount >= 1 && oldCount >= 1;
+      break;
+    case "diversity":
+      useful = cited && uniqueCreators >= 2;
+      break;
+    case "actions":
+    case "recommendation":
+      useful = cited && uniqueCreators >= 2 && topScore >= 3;
+      break;
+    default:
+      useful = cited && topScore >= 2;
+      break;
+  }
+
   const trustworthy =
     cited &&
     lowTrustCount <= 1 &&
@@ -231,7 +501,7 @@ function evaluateQuestion(question, records, transcriptMap) {
     useful: toYesNo(useful),
     cited: toYesNo(cited),
     trustworthy: toYesNo(trustworthy),
-    notes: `top_score=${topScore}; citations=${citations.length}; transcripts_used=${transcriptHits}`,
+    notes: `intent=${intent}; top_score=${topScore.toFixed(2)}; creators=${uniqueCreators}; citations=${citations.length}; recent=${recentCount}; old=${oldCount}; transcripts_used=${transcriptHits}; contradiction=${contradiction}`,
     top_records: topRecords.map((record) => ({
       id: record.id,
       title: record.title,
@@ -271,8 +541,8 @@ function toCsv(rows) {
   const header = ["question_id", "question", "useful", "cited", "trustworthy", "notes"];
   const escape = (value) => {
     const text = String(value ?? "");
-    if (text.includes(",") || text.includes("\"") || text.includes("\n")) {
-      return `"${text.replaceAll("\"", "\"\"")}"`;
+    if (text.includes(",") || text.includes('"') || text.includes("\n")) {
+      return `"${text.replaceAll('"', '""')}"`;
     }
     return text;
   };
@@ -291,9 +561,8 @@ function main() {
   const questions = readQuestionsMarkdown(args.questions);
   const transcriptMap = loadTranscriptMap(args.transcripts);
 
-  const rows = questions.map((question) =>
-    evaluateQuestion(question, records, transcriptMap),
-  );
+  const corpus = buildCorpus(records, transcriptMap);
+  const rows = questions.map((question) => evaluateQuestion(question, corpus));
   const metrics = computeMetrics(rows);
 
   fs.mkdirSync(args.outDir, { recursive: true });

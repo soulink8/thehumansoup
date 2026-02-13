@@ -65,6 +65,8 @@ export interface DbContent {
   media_url: string | null;
   media_duration: number | null;
   media_thumbnail: string | null;
+  transcript_text: string | null;
+  transcript_language: string | null;
   indexed_at: string;
   updated_at: string;
 }
@@ -165,6 +167,10 @@ export interface ContentResponse {
     url: string | null;
     duration: number | null;
     thumbnail: string | null;
+  };
+  transcript?: {
+    text: string;
+    language: string | null;
   };
 }
 
