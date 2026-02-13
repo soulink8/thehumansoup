@@ -99,8 +99,14 @@ export type ServeRecommendation = {
   creatorName: string;
   creatorHandle: string;
   contentType: string;
+  contentUrl: string;
   url: string;
   publishedAt: string | null;
+  excerpt: string | null;
+  media?: {
+    url: string | null;
+    thumbnail: string | null;
+  };
   why: string;
   score: number;
   isFresh: boolean;
@@ -298,8 +304,14 @@ function scoreContentItem(
     creatorName: item.creatorName,
     creatorHandle: item.creatorHandle,
     contentType: normalizedType,
+    contentUrl: url,
     url,
     publishedAt: item.publishedAt,
+    excerpt: item.excerpt ?? null,
+    media: {
+      url: item.media?.url ?? null,
+      thumbnail: item.media?.thumbnail ?? null,
+    },
     why: reasons.slice(0, 2).join(" · "),
     score: Number(score.toFixed(4)),
     isFresh: freshness.isFresh,
@@ -311,8 +323,8 @@ function dedupeByUrl(items: ScoredRecommendation[]): ScoredRecommendation[] {
   const seen = new Set<string>();
   const deduped: ScoredRecommendation[] = [];
   for (const item of items) {
-    if (seen.has(item.url)) continue;
-    seen.add(item.url);
+    if (seen.has(item.contentUrl)) continue;
+    seen.add(item.contentUrl);
     deduped.push(item);
   }
   return deduped;

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import ContentCard from "../../components/ContentCard.vue";
 import { fetchAuthSession } from "../../lib/auth";
 
 type ThreadTurn = {
@@ -14,8 +15,14 @@ type ServeRecommendation = {
   creatorName: string;
   creatorHandle: string;
   contentType: string;
+  contentUrl: string;
   url: string;
   publishedAt: string | null;
+  excerpt: string | null;
+  media?: {
+    url: string | null;
+    thumbnail: string | null;
+  };
   why: string;
   score: number;
   isFresh: boolean;
@@ -66,6 +73,19 @@ type AssistantTurn = {
 };
 
 type Turn = UserTurn | AssistantTurn;
+
+type CardItem = {
+  id: string;
+  creatorName: string;
+  title: string;
+  contentType: string;
+  contentUrl: string | null;
+  publishedAt: string | null;
+  media?: {
+    url?: string;
+    thumbnail?: string;
+  };
+};
 
 const API_BASE =
   import.meta.env.VITE_SOUP_API_URL ??
@@ -213,21 +233,19 @@ function toggleRecommendations(turn: AssistantTurn) {
   turn.visibleCount = turn.visibleCount > 3 ? 3 : total;
 }
 
-function formatDate(value: string | null): string {
-  if (!value) return "Date unknown";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Date unknown";
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function displayType(contentType: string): string {
-  const normalized = contentType.toLowerCase();
-  if (normalized === "audio") return "podcast";
-  return normalized;
+function toCardItem(item: ServeRecommendation): CardItem {
+  return {
+    id: item.id,
+    creatorName: item.creatorName,
+    title: item.title,
+    contentType: item.contentType,
+    contentUrl: item.contentUrl || item.url || null,
+    publishedAt: item.publishedAt,
+    media: {
+      url: item.media?.url ?? undefined,
+      thumbnail: item.media?.thumbnail ?? undefined,
+    },
+  };
 }
 
 async function scrollToBottom() {
@@ -306,22 +324,14 @@ onMounted(async () => {
               </p>
 
               <div class="recommendation-list">
-                <a
+                <article
                   v-for="item in visibleRecommendations(turn)"
                   :key="item.id"
-                  class="recommendation-card"
-                  :href="item.url"
-                  target="_blank"
-                  rel="noreferrer"
+                  class="recommendation-entry"
                 >
-                  <div class="recommendation-meta">
-                    <span class="badge">{{ displayType(item.contentType) }}</span>
-                    <span class="muted small">{{ formatDate(item.publishedAt) }}</span>
-                  </div>
-                  <h3>{{ item.title }}</h3>
-                  <p class="small creator">{{ item.creatorName }}</p>
+                  <ContentCard :item="toCardItem(item)" />
                   <p class="small why">{{ item.why }}</p>
-                </a>
+                </article>
               </div>
 
               <div class="result-actions">
@@ -465,42 +475,16 @@ onMounted(async () => {
   gap: 10px;
 }
 
-.recommendation-card {
+.recommendation-entry {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(47, 42, 37, 0.14);
-  background: rgba(255, 250, 241, 0.96);
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.recommendation-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 16px rgba(47, 42, 37, 0.12);
-}
-
-.recommendation-card h3 {
-  margin: 0;
-  font-size: 18px;
-  line-height: 1.3;
-}
-
-.recommendation-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .small {
   font-size: 12px;
 }
 
-.creator,
 .why {
   margin: 0;
 }
