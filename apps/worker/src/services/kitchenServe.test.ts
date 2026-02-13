@@ -80,6 +80,18 @@ describe("buildServeResult", () => {
     expect(result.summary.length).toBeGreaterThan(0);
   });
 
+  it("hard-gates unrelated content when no terms match", () => {
+    const result = buildServeResult({
+      prompt: "Give me the latest on openclaw",
+      items,
+      days: 7,
+      limit: 3,
+    });
+
+    expect(result.recommendations).toHaveLength(0);
+    expect(result.needsRefresh).toBe(true);
+  });
+
   it("marks thin coverage when fewer than 3 links exist", () => {
     const result = buildServeResult({
       prompt: "latest on AI",

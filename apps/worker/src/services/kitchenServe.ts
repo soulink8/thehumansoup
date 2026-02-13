@@ -230,6 +230,10 @@ export function inferMode(
   };
 }
 
+export function extractServeTerms(prompt: string): string[] {
+  return extractTerms(prompt.toLowerCase().trim());
+}
+
 function scoreContentItem(
   item: ContentResponse,
   inferred: InferredMode,
@@ -257,6 +261,12 @@ function scoreContentItem(
     inferred.terms.length > 0
       ? Math.min(1, termMatches.length / Math.min(8, inferred.terms.length))
       : 0.35;
+
+  // Hard relevance gate: when the prompt has usable terms,
+  // never include content that matches none of them.
+  if (inferred.terms.length > 0 && termMatches.length === 0) {
+    return null;
+  }
 
   const freshness = scoreFreshness(item.publishedAt, days, nowMs);
   const freshnessScore = freshness.score;

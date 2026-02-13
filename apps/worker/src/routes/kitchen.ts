@@ -8,7 +8,7 @@ import { Hono } from "hono";
 import type { Env } from "../lib/types";
 import { requireUser } from "../lib/session";
 import { hashEmail } from "../lib/me3";
-import { getCreatorByHandle, getFeed } from "../services/graph";
+import { getCreatorByHandle, getFeed, searchFeedContent } from "../services/graph";
 import {
   getSoupProfileByHandle,
   listSoupProfilesByOwner,
@@ -19,7 +19,11 @@ import {
 } from "../services/soupStore";
 import { ensureSubscriptions, indexUserSources } from "../services/sourceIndexer";
 import { indexSite } from "../services/indexer";
-import { buildServeResult, type TurnContext } from "../services/kitchenServe";
+import {
+  buildServeResult,
+  extractServeTerms,
+  type TurnContext,
+} from "../services/kitchenServe";
 
 const kitchen = new Hono<{ Bindings: Env }>();
 
@@ -156,6 +160,7 @@ kitchen.post("/kitchen/serve", async (c) => {
   const limit = clampNumber(body.limit, 3, 30, 12);
   const refresh = Boolean(body.refresh);
   const thread = sanitizeThread(body.thread);
+  const searchTerms = extractServeTerms(prompt);
 
   const handleResult = await resolveSoupHandle(c.env.DB, {
     userId: auth.userId,
@@ -166,7 +171,13 @@ kitchen.post("/kitchen/serve", async (c) => {
     return c.json({ error: handleResult.error }, handleResult.status);
   }
 
-  const initialFeed = await loadSoupFeed(c.env.DB, handleResult.handle, days, limit);
+  const initialFeed = await loadSoupFeed(
+    c.env.DB,
+    handleResult.handle,
+    days,
+    limit,
+    searchTerms,
+  );
   if (!initialFeed.ok) {
     return c.json({ error: initialFeed.error }, initialFeed.status);
   }
@@ -198,7 +209,13 @@ kitchen.post("/kitchen/serve", async (c) => {
       itemsIndexed: ingestResult.itemsIndexed,
     };
 
-    const refreshedFeed = await loadSoupFeed(c.env.DB, handleResult.handle, days, limit);
+    const refreshedFeed = await loadSoupFeed(
+      c.env.DB,
+      handleResult.handle,
+      days,
+      limit,
+      searchTerms,
+    );
     if (!refreshedFeed.ok) {
       return c.json({ error: refreshedFeed.error }, refreshedFeed.status);
     }
@@ -278,6 +295,7 @@ async function loadSoupFeed(
   handle: string,
   days: number,
   limit: number,
+  searchTerms: string[],
 ): Promise<FeedResult> {
   const soup = await listSoupSourcesByHandle(db, handle);
   if (!soup) {
@@ -314,8 +332,23 @@ async function loadSoupFeed(
     subscriberEmailHash: subscriberHash,
   });
 
+  let matched: Awaited<ReturnType<typeof searchFeedContent>> = [];
+  if (searchTerms.length > 0) {
+    matched = await searchFeedContent(db, {
+      subscriberId,
+      subscriberEmailHash: subscriberHash,
+      terms: searchTerms,
+      since,
+      limit: Math.min(200, Math.max(limit * 8, 80)),
+    });
+  }
+
+  if (matched.length >= 3) {
+    return { ok: true, items: mergeById(matched, recent.items) };
+  }
+
   if (recent.items.length >= 6) {
-    return { ok: true, items: recent.items };
+    return { ok: true, items: mergeById(matched, recent.items) };
   }
 
   const full = await getFeed(db, subscriberId, {
@@ -325,17 +358,19 @@ async function loadSoupFeed(
 
   return {
     ok: true,
-    items: mergeById(recent.items, full.items),
+    items: mergeById(matched, recent.items, full.items),
   };
 }
 
-function mergeById<T extends { id: string }>(primary: T[], secondary: T[]): T[] {
+function mergeById<T extends { id: string }>(...lists: T[][]): T[] {
   const seen = new Set<string>();
   const merged: T[] = [];
-  for (const item of [...primary, ...secondary]) {
-    if (seen.has(item.id)) continue;
-    seen.add(item.id);
-    merged.push(item);
+  for (const list of lists) {
+    for (const item of list) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      merged.push(item);
+    }
   }
   return merged;
 }

@@ -253,6 +253,71 @@ export async function getFeed(
   };
 }
 
+export async function searchFeedContent(
+  db: D1Database,
+  options: {
+    subscriberId: string;
+    subscriberEmailHash?: string;
+    terms: string[];
+    since?: string;
+    limit?: number;
+  },
+): Promise<ContentResponse[]> {
+  const {
+    subscriberId,
+    subscriberEmailHash,
+    terms,
+    since,
+    limit = 80,
+  } = options;
+
+  const normalizedTerms = terms
+    .map((term) => term.trim().toLowerCase())
+    .filter((term) => term.length >= 2)
+    .slice(0, 8);
+  if (!normalizedTerms.length) return [];
+
+  const subscriberHash = subscriberEmailHash ?? subscriberId;
+  let query = `
+    SELECT c.*, cr.handle as creator_handle, cr.name as creator_name
+    FROM content c
+    JOIN creators cr ON c.creator_id = cr.id
+    JOIN subscriptions s ON s.creator_id = c.creator_id
+    WHERE (s.subscriber_id = ? OR s.subscriber_email_hash = ?)
+      AND s.unsubscribed_at IS NULL
+  `;
+  const params: unknown[] = [subscriberId, subscriberHash];
+
+  if (since) {
+    query += " AND c.published_at >= ?";
+    params.push(since);
+  }
+
+  const termClauses: string[] = [];
+  for (const term of normalizedTerms) {
+    const like = `%${escapeLike(term)}%`;
+    termClauses.push(
+      `(lower(c.title) LIKE ? ESCAPE '\\' OR
+        lower(COALESCE(c.excerpt, '')) LIKE ? ESCAPE '\\' OR
+        lower(COALESCE(c.transcript_text, '')) LIKE ? ESCAPE '\\' OR
+        lower(cr.name) LIKE ? ESCAPE '\\' OR
+        lower(COALESCE(c.topics, '')) LIKE ? ESCAPE '\\')`,
+    );
+    params.push(like, like, like, like, like);
+  }
+
+  query += ` AND (${termClauses.join(" OR ")})`;
+  query += " ORDER BY c.published_at DESC NULLS LAST LIMIT ?";
+  params.push(Math.min(Math.max(limit, 1), 200));
+
+  const result = await db
+    .prepare(query)
+    .bind(...params)
+    .all<DbContent & { creator_handle: string; creator_name: string }>();
+
+  return (result.results ?? []).map(toContentResponse);
+}
+
 // ── Trending ───────────────────────────────────────────────
 
 export async function getTrending(
@@ -383,4 +448,8 @@ function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function escapeLike(value: string): string {
+  return value.replace(/([%_\\])/g, "\\$1");
 }
