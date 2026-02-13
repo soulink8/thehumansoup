@@ -66,14 +66,17 @@ onMounted(() => {
       <p class="eyebrow">Kitchen</p>
       <h1 class="hero-title">Your soups</h1>
       <p class="hero-sub">
-        Dashboard placeholder. Use it to create soups and add creator sources.
+        Manage your soups and jump into the new ask-and-serve experience.
       </p>
       <div class="hero-actions">
         <RouterLink class="button primary" to="/kitchen/make"
-          >Make a soup</RouterLink
+          >Serve soup</RouterLink
         >
         <RouterLink class="button ghost" to="/kitchen/add"
           >Add creator sources</RouterLink
+        >
+        <RouterLink class="button ghost" to="/kitchen/make-legacy"
+          >Legacy make flow</RouterLink
         >
       </div>
     </section>
@@ -82,7 +85,7 @@ onMounted(() => {
       <p v-if="loading" class="muted">Loading...</p>
       <p v-else-if="error" class="error">{{ error }}</p>
       <p v-else-if="!soups.length" class="muted">
-        No soups yet. Start with “Make a soup”.
+        No soups yet. Start with “Add creator sources” or use “Legacy make flow”.
       </p>
       <div v-else class="panel-list">
         <article v-for="soup in soups" :key="soup.id" class="panel">

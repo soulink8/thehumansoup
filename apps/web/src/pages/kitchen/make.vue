@@ -1,442 +1,608 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { nextTick, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { fetchAuthSession } from "../../lib/auth";
 
-type SourceCandidate = {
-  name: string;
-  type: "video" | "audio" | "article";
-  feedUrl: string;
-  siteUrl?: string;
-  confidence: number;
+type ThreadTurn = {
+  role: "user" | "assistant";
+  content: string;
 };
 
-type SourceInput = {
-  feedUrl: string;
-  sourceType: "video" | "audio" | "article";
-  name?: string;
-  siteUrl?: string;
-  confidence?: number;
+type ServeRecommendation = {
+  id: string;
+  title: string;
+  creatorName: string;
+  creatorHandle: string;
+  contentType: string;
+  url: string;
+  publishedAt: string | null;
+  why: string;
+  score: number;
+  isFresh: boolean;
+  keywords: string[];
 };
+
+type ServeResult = {
+  soupName: string;
+  prompt: string;
+  days: number;
+  refreshRequested: boolean;
+  mode: {
+    behavior: "listen" | "watch" | "read" | "mixed";
+    intent: "latest" | "learn" | "entertainment" | "general";
+    preferredTypes: string[];
+  };
+  summary: string;
+  recommendations: ServeRecommendation[];
+  coverage: {
+    windowDays: number;
+    totalMatches: number;
+    recentMatches: number;
+    thin: boolean;
+  };
+  needsRefresh: boolean;
+  ingestion: {
+    triggered: boolean;
+    feedsIndexed?: number;
+    itemsIndexed?: number;
+  };
+};
+
+type UserTurn = {
+  id: string;
+  type: "user";
+  prompt: string;
+};
+
+type AssistantTurn = {
+  id: string;
+  type: "assistant";
+  prompt: string;
+  loading: boolean;
+  isSimmering: boolean;
+  error: string | null;
+  result: ServeResult | null;
+  visibleCount: number;
+};
+
+type Turn = UserTurn | AssistantTurn;
 
 const API_BASE =
   import.meta.env.VITE_SOUP_API_URL ??
   "https://thehumansoup-worker.kieranbutler.workers.dev";
 
 const router = useRouter();
-const step = ref(0);
-const handle = ref("");
-const handleError = ref<string | null>(null);
-const searchQuery = ref("");
-const searchResults = ref<SourceCandidate[]>([]);
-const isSearching = ref(false);
-const selectedSources = ref<SourceInput[]>([]);
-const error = ref<string | null>(null);
-const isSaving = ref(false);
-const finalHandle = ref<string>("");
-const showManualModal = ref(false);
-const manualFeedUrl = ref("");
-const manualName = ref("");
-const manualType = ref<"article" | "audio" | "video">("article");
-const manualError = ref<string | null>(null);
+const prompt = ref("");
+const loading = ref(false);
+const pageError = ref<string | null>(null);
+const turns = ref<Turn[]>([]);
+const historyRef = ref<HTMLElement | null>(null);
 
-const steps = [
-  { title: "Add ingredients", subtitle: "Search, add, and tweak sources." },
-  { title: "Grab a bowl", subtitle: "Name the bowl and serve your soup." },
-];
-
-const canContinue = computed(() => {
-  if (step.value === 0) return selectedSources.value.length > 0;
-  if (step.value === 1) return handle.value.trim().length >= 3;
-  return true;
-});
-
-const selectedPreview = computed(() =>
-  selectedSources.value.map((source) => ({
-    label: source.name?.trim() || domainFromUrl(source.feedUrl) || "New feed",
-    type: source.sourceType,
-  })),
-);
-
-function domainFromUrl(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return "";
-  }
+function createId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-async function discoverSources() {
-  if (!searchQuery.value.trim()) return;
-  error.value = null;
-  isSearching.value = true;
-  try {
-    const response = await fetch(
-      `${API_BASE}/discover/sources?q=${encodeURIComponent(searchQuery.value)}`,
-    );
-    if (!response.ok) {
-      throw new Error(`Search failed: ${response.status}`);
+function resetThread() {
+  turns.value = [];
+  pageError.value = null;
+}
+
+function getThreadContext(): ThreadTurn[] {
+  const context: ThreadTurn[] = [];
+  for (const turn of turns.value) {
+    if (turn.type === "user") {
+      context.push({ role: "user", content: turn.prompt });
+      continue;
     }
-    const data = await response.json();
-    searchResults.value = data.candidates ?? [];
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : "Search failed.";
-  } finally {
-    isSearching.value = false;
+    if (turn.result?.summary) {
+      context.push({ role: "assistant", content: turn.result.summary });
+    }
   }
+  return context.slice(-8);
 }
 
-function addCandidate(candidate: SourceCandidate) {
-  if (
-    selectedSources.value.some((source) => source.feedUrl === candidate.feedUrl)
-  ) {
-    return;
-  }
-  selectedSources.value.push({
-    feedUrl: candidate.feedUrl,
-    sourceType: candidate.type,
-    name: candidate.name,
-    siteUrl: candidate.siteUrl,
-    confidence: candidate.confidence,
-  });
-}
+async function submitPrompt() {
+  const value = prompt.value.trim();
+  if (!value || loading.value) return;
 
-function addManualSource() {
-  showManualModal.value = true;
-  manualFeedUrl.value = "";
-  manualName.value = "";
-  manualType.value = "article";
-  manualError.value = null;
-}
+  const threadContext = getThreadContext();
+  prompt.value = "";
+  pageError.value = null;
+  loading.value = true;
 
-function removeSource(index: number) {
-  selectedSources.value.splice(index, 1);
-}
+  const userTurn: UserTurn = {
+    id: createId(),
+    type: "user",
+    prompt: value,
+  };
+  const assistantTurn: AssistantTurn = {
+    id: createId(),
+    type: "assistant",
+    prompt: value,
+    loading: true,
+    isSimmering: false,
+    error: null,
+    result: null,
+    visibleCount: 3,
+  };
+  turns.value.push(userTurn, assistantTurn);
 
-function closeManualModal() {
-  showManualModal.value = false;
-  manualError.value = null;
-}
-
-function addManualFromModal() {
-  const feedUrl = manualFeedUrl.value.trim();
-  if (!feedUrl) {
-    manualError.value = "Feed URL is required.";
-    return;
-  }
-  selectedSources.value.push({
-    feedUrl,
-    sourceType: manualType.value,
-    name: manualName.value.trim() || undefined,
-  });
-  closeManualModal();
-}
-
-async function saveSoup() {
-  error.value = null;
-  const session = await fetchAuthSession(API_BASE);
-  if (!session) {
-    router.push("/login?redirect=/kitchen/make");
-    return;
-  }
-
-  isSaving.value = true;
   try {
-    const response = await fetch(`${API_BASE}/kitchen/submit`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({
-        name: handle.value.trim() || undefined,
-        displayName: handle.value.trim() || undefined,
-        sources: selectedSources.value.map((source) => ({
-          feedUrl: source.feedUrl.trim(),
-          sourceType: source.sourceType,
-          name: source.name?.trim() || undefined,
-          siteUrl: source.siteUrl?.trim() || undefined,
-          confidence: source.confidence ?? undefined,
-        })),
-      }),
+    const initial = await requestSoup({
+      prompt: value,
+      refresh: false,
+      thread: threadContext,
     });
+    assistantTurn.loading = false;
+    assistantTurn.result = initial;
 
-    if (response.status === 401) {
-      router.push("/login?redirect=/kitchen/make");
-      return;
+    if (initial.needsRefresh) {
+      assistantTurn.isSimmering = true;
+      const refreshContext = [
+        ...threadContext,
+        { role: "user" as const, content: value },
+        { role: "assistant" as const, content: initial.summary },
+      ].slice(-8);
+      const refreshed = await requestSoup({
+        prompt: value,
+        refresh: true,
+        thread: refreshContext,
+      });
+      assistantTurn.result = refreshed;
+      assistantTurn.isSimmering = false;
     }
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || "Failed to save soup");
-    }
-    const data = await response.json();
-    finalHandle.value = cleanHandle(data.name);
-
-    await router.push(`/soups/${finalHandle.value}`);
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : "Failed to make soup";
+  } catch (error) {
+    assistantTurn.loading = false;
+    assistantTurn.isSimmering = false;
+    assistantTurn.error =
+      error instanceof Error ? error.message : "Failed to serve soup";
   } finally {
-    isSaving.value = false;
+    loading.value = false;
   }
 }
 
-function nextStep() {
-  if (!canContinue.value) return;
-  if (step.value >= 1) return;
-  step.value = 1;
-  if (!handle.value.trim()) {
-    handle.value = generateSoupHandle();
+async function requestSoup(payload: {
+  prompt: string;
+  refresh: boolean;
+  thread: ThreadTurn[];
+}): Promise<ServeResult> {
+  const response = await fetch(`${API_BASE}/kitchen/serve`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({
+      prompt: payload.prompt,
+      days: 7,
+      limit: 12,
+      refresh: payload.refresh,
+      thread: payload.thread,
+    }),
+  });
+
+  if (response.status === 401) {
+    await router.push("/login?redirect=/kitchen/make");
+    throw new Error("Please log in to continue.");
   }
-}
 
-function prevStep() {
-  if (step.value === 0) return;
-  step.value -= 1;
-}
-
-function cleanHandle(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/@/g, "")
-    .replace(/[^a-z0-9_-]/g, "");
-}
-
-watch(handle, (value) => {
-  const cleaned = cleanHandle(value);
-  if (cleaned !== value) {
-    handle.value = cleaned;
-    return;
+  const data = (await response.json()) as ServeResult & { error?: string };
+  if (!response.ok) {
+    throw new Error(data.error ?? `Request failed: ${response.status}`);
   }
-  handleError.value =
-    cleaned.length > 0 && cleaned.length < 3
-      ? "Handle must be at least 3 characters."
-      : null;
-  finalHandle.value = "";
-});
+
+  return data;
+}
+
+function visibleRecommendations(turn: AssistantTurn): ServeRecommendation[] {
+  return turn.result?.recommendations.slice(0, turn.visibleCount) ?? [];
+}
+
+function hasMoreRecommendations(turn: AssistantTurn): boolean {
+  return (turn.result?.recommendations.length ?? 0) > 3;
+}
+
+function isExpanded(turn: AssistantTurn): boolean {
+  const total = turn.result?.recommendations.length ?? 0;
+  return turn.visibleCount >= total;
+}
+
+function toggleRecommendations(turn: AssistantTurn) {
+  const total = turn.result?.recommendations.length ?? 0;
+  if (total <= 3) return;
+  turn.visibleCount = turn.visibleCount > 3 ? 3 : total;
+}
+
+function formatDate(value: string | null): string {
+  if (!value) return "Date unknown";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Date unknown";
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function displayType(contentType: string): string {
+  const normalized = contentType.toLowerCase();
+  if (normalized === "audio") return "podcast";
+  return normalized;
+}
+
+async function scrollToBottom() {
+  await nextTick();
+  const container = historyRef.value;
+  if (!container) return;
+  container.scrollTop = container.scrollHeight;
+}
 
 watch(
-  selectedSources,
-  () => {
-    finalHandle.value = "";
+  turns,
+  async () => {
+    await scrollToBottom();
   },
   { deep: true },
 );
 
-function generateSoupHandle(): string {
-  const adjectives = [
-    "spicy",
-    "misty",
-    "golden",
-    "wild",
-    "electric",
-    "cosmic",
-    "silky",
-    "bold",
-    "gentle",
-    "smoky",
-  ];
-  const nouns = ["broth", "stew", "soup", "chowder", "bisque"];
-  const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-  const noun = nouns[Math.floor(Math.random() * nouns.length)];
-  return cleanHandle(`${adjective}-${noun}`);
-}
-
-function isSelected(candidate: SourceCandidate): boolean {
-  return selectedSources.value.some(
-    (source) => source.feedUrl === candidate.feedUrl,
-  );
-}
-
 onMounted(async () => {
   const session = await fetchAuthSession(API_BASE);
   if (!session) {
-    router.push("/login?redirect=/kitchen/make");
+    await router.push("/login?redirect=/kitchen/make");
   }
 });
 </script>
 
 <template>
   <div class="page make-page">
-    <div class="beta-banner">
-      <span class="beta-pill">Make</span>
-      <span>Build your soup in minutes.</span>
-    </div>
+    <section class="chat-shell">
+      <header class="chat-header">
+        <div>
+          <p class="eyebrow">Kitchen / Make</p>
+          <h1 class="hero-title">Serve me soup</h1>
+          <p class="hero-sub">
+            Ask for the latest on any topic and get focused recommendations with
+            links.
+          </p>
+        </div>
+        <div class="header-actions">
+          <RouterLink class="button ghost" to="/kitchen/make-legacy">
+            Legacy builder
+          </RouterLink>
+          <button
+            class="button ghost"
+            type="button"
+            :disabled="loading || !turns.length"
+            @click="resetThread"
+          >
+            New thread
+          </button>
+        </div>
+      </header>
 
-    <section class="hero soup-hero make-hero">
-      <div class="make-hero-grid">
-        <div class="make-hero-copy">
-          <p class="eyebrow">Soup Wizard</p>
-          <h1 class="hero-title">{{ steps[step].title }}</h1>
-          <p class="hero-sub">{{ steps[step].subtitle }}</p>
-
-          <div class="stepper">
-            <div
-              v-for="(s, index) in steps"
-              :key="s.title"
-              class="step"
-              :class="{ active: index === step }"
-            >
-              <span class="step-index">{{ index + 1 }}</span>
-              <span class="step-title">{{ s.title }}</span>
-            </div>
-          </div>
+      <div ref="historyRef" class="chat-history">
+        <div v-if="!turns.length" class="empty-state">
+          <p class="muted">
+            Ask what you need. Example: "Give me the latest on AI agents for
+            founders."
+          </p>
         </div>
 
-        <div class="make-hero-summary">
-          <h3>Ingredients</h3>
-          <p class="muted">Everything you add shows up here.</p>
-          <div v-if="selectedPreview.length" class="ingredient-list">
-            <div
-              v-for="(item, index) in selectedPreview"
-              :key="`${item.label}-${index}`"
-              class="ingredient-row"
-            >
-              <span>{{ item.label }}</span>
-              <div class="ingredient-meta">
-                <span class="badge">{{ item.type }}</span>
-                <button
-                  class="ingredient-remove"
-                  type="button"
-                  @click="removeSource(index)"
+        <template v-for="turn in turns" :key="turn.id">
+          <article v-if="turn.type === 'user'" class="turn user-turn">
+            <p>{{ turn.prompt }}</p>
+          </article>
+
+          <article v-else class="turn assistant-turn">
+            <p v-if="turn.loading" class="muted">Serving soup...</p>
+            <p v-else-if="turn.error" class="error">{{ turn.error }}</p>
+            <template v-else-if="turn.result">
+              <p class="assistant-summary">{{ turn.result.summary }}</p>
+              <p class="muted meta-row">
+                mode: {{ turn.result.mode.behavior }} ·
+                {{ turn.result.mode.intent }} ·
+                {{ turn.result.coverage.windowDays }}d window ·
+                {{ turn.result.coverage.recentMatches }} recent matches
+              </p>
+
+              <div class="recommendation-list">
+                <a
+                  v-for="item in visibleRecommendations(turn)"
+                  :key="item.id"
+                  class="recommendation-card"
+                  :href="item.url"
+                  target="_blank"
+                  rel="noreferrer"
                 >
-                  Remove
-                </button>
+                  <div class="recommendation-meta">
+                    <span class="badge">{{ displayType(item.contentType) }}</span>
+                    <span class="muted small">{{ formatDate(item.publishedAt) }}</span>
+                  </div>
+                  <h3>{{ item.title }}</h3>
+                  <p class="small creator">{{ item.creatorName }}</p>
+                  <p class="small why">{{ item.why }}</p>
+                </a>
               </div>
-            </div>
-          </div>
-          <p v-else class="muted">No ingredients yet.</p>
-        </div>
+
+              <div class="result-actions">
+                <button
+                  v-if="hasMoreRecommendations(turn)"
+                  class="button ghost small-button"
+                  type="button"
+                  @click="toggleRecommendations(turn)"
+                >
+                  {{ isExpanded(turn) ? "Show top 3" : "Show more" }}
+                </button>
+                <p class="muted small">All recommendations include direct links.</p>
+              </div>
+
+              <p v-if="turn.isSimmering" class="simmering">
+                <span class="simmer-dot" />
+                Simmering latest information...
+              </p>
+            </template>
+          </article>
+        </template>
+
+        <p v-if="pageError" class="error">{{ pageError }}</p>
       </div>
-    </section>
 
-    <section class="section">
-      <p v-if="error" class="error">{{ error }}</p>
-
-      <div v-if="step === 1" class="wizard-card">
-        <label class="field">
-          <span>Name your soup</span>
-          <input v-model="handle" placeholder="kierans-soup" />
-        </label>
-        <p v-if="handleError" class="error">{{ handleError }}</p>
-        <div class="callout-actions">
+      <form class="composer" @submit.prevent="submitPrompt">
+        <textarea
+          v-model="prompt"
+          rows="3"
+          placeholder="What soup do you want right now?"
+          :disabled="loading"
+        />
+        <div class="composer-actions">
+          <p class="muted small">
+            Default: 7-day window, behavior-aware ranking, concise output.
+          </p>
           <button
             class="button primary"
-            type="button"
-            :disabled="!canContinue || isSaving"
-            @click="saveSoup"
+            type="submit"
+            :disabled="loading || !prompt.trim()"
           >
-            {{ isSaving ? "Serving..." : "Serve me my soup" }}
+            {{ loading ? "Serving..." : "serve me soup" }}
           </button>
         </div>
-      </div>
-
-      <div v-else-if="step === 0" class="wizard-card">
-        <div class="search-row">
-          <input
-            v-model="searchQuery"
-            placeholder="Search a person, podcast, blog or YouTube channel you enjoy."
-          />
-          <button
-            class="button primary"
-            type="button"
-            :disabled="isSearching"
-            @click="discoverSources"
-          >
-            {{ isSearching ? "Searching..." : "Find ingredients" }}
-          </button>
-        </div>
-        <div class="result-grid">
-          <div
-            v-for="candidate in searchResults"
-            :key="candidate.feedUrl"
-            class="result-card"
-          >
-            <p class="result-title">{{ candidate.name }}</p>
-            <p class="muted">{{ candidate.feedUrl }}</p>
-            <span class="badge">{{ candidate.type }}</span>
-            <button
-              class="button ghost"
-              type="button"
-              :disabled="isSelected(candidate)"
-              @click="addCandidate(candidate)"
-            >
-              {{ isSelected(candidate) ? "Added" : "Add" }}
-            </button>
-          </div>
-        </div>
-        <div class="wizard-header">
-          <button class="button ghost" type="button" @click="addManualSource">
-            Add feed manually
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <div
-      v-if="showManualModal"
-      class="modal-overlay"
-      @click.self="closeManualModal"
-    >
-      <div class="modal-card">
-        <h3>Add a feed</h3>
-        <p class="muted">
-          Drop in a feed URL and we’ll treat it as an ingredient.
-        </p>
-        <label class="field">
-          <span>Name (optional)</span>
-          <input v-model="manualName" placeholder="Creator or channel name" />
-        </label>
-        <label class="field">
-          <span>Feed URL</span>
-          <input
-            v-model="manualFeedUrl"
-            placeholder="https://username.substack.com/feed"
-          />
-        </label>
-        <label class="field">
-          <span>Type</span>
-          <select v-model="manualType">
-            <option value="article">Article</option>
-            <option value="audio">Audio</option>
-            <option value="video">Video</option>
-          </select>
-        </label>
-        <p v-if="manualError" class="error">{{ manualError }}</p>
-        <div class="callout-actions">
-          <button class="button ghost" type="button" @click="closeManualModal">
-            Cancel
-          </button>
-          <button
-            class="button primary"
-            type="button"
-            @click="addManualFromModal"
-          >
-            Add feed
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <section v-if="step === 0" class="section wizard-footer">
-      <div class="nav-row">
-        <button
-          class="button ghost"
-          type="button"
-          :disabled="step === 0"
-          @click="prevStep"
-        >
-          Back
-        </button>
-        <button
-          class="button primary"
-          type="button"
-          :disabled="!canContinue"
-          @click="nextStep"
-        >
-          Grab a bowl
-        </button>
-      </div>
+      </form>
     </section>
   </div>
 </template>
+
+<style scoped>
+.make-page {
+  gap: 24px;
+}
+
+.chat-shell {
+  width: min(980px, 100%);
+  margin: 0 auto;
+  background: rgba(255, 250, 241, 0.8);
+  border: 1px solid rgba(47, 42, 37, 0.14);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  display: grid;
+  grid-template-rows: auto minmax(240px, 1fr) auto;
+  min-height: calc(100vh - 180px);
+  overflow: hidden;
+}
+
+.chat-header {
+  padding: 22px 22px 16px;
+  border-bottom: 1px solid rgba(47, 42, 37, 0.12);
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.chat-header .hero-title {
+  font-size: clamp(30px, 3.8vw, 42px);
+}
+
+.chat-header .hero-sub {
+  margin-bottom: 0;
+  max-width: 620px;
+  font-size: 16px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.chat-history {
+  padding: 18px 22px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.empty-state {
+  border: 1px dashed rgba(47, 42, 37, 0.2);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.turn {
+  border-radius: 14px;
+  border: 1px solid rgba(47, 42, 37, 0.14);
+  padding: 14px;
+}
+
+.user-turn {
+  align-self: flex-end;
+  max-width: 84%;
+  background: rgba(47, 42, 37, 0.92);
+  color: var(--white);
+}
+
+.user-turn p {
+  margin: 0;
+}
+
+.assistant-turn {
+  background: rgba(255, 250, 241, 0.95);
+}
+
+.assistant-summary {
+  margin: 0 0 10px;
+  font-weight: 600;
+}
+
+.meta-row {
+  margin: 0 0 12px;
+}
+
+.recommendation-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.recommendation-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(47, 42, 37, 0.14);
+  background: rgba(255, 250, 241, 0.96);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.recommendation-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(47, 42, 37, 0.12);
+}
+
+.recommendation-card h3 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.recommendation-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.small {
+  font-size: 12px;
+}
+
+.creator,
+.why {
+  margin: 0;
+}
+
+.why {
+  color: var(--ink-soft);
+}
+
+.result-actions {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.small-button {
+  padding: 8px 14px;
+  font-size: 12px;
+}
+
+.simmering {
+  margin: 12px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--river);
+}
+
+.simmer-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--river);
+  box-shadow: 0 0 0 0 rgba(62, 107, 115, 0.5);
+  animation: simmerPulse 1.2s ease infinite;
+}
+
+.composer {
+  border-top: 1px solid rgba(47, 42, 37, 0.12);
+  padding: 14px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(255, 250, 241, 0.94);
+}
+
+.composer textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 72px;
+  border-radius: 12px;
+  border: 1px solid rgba(47, 42, 37, 0.2);
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 14px;
+  background: rgba(255, 250, 241, 0.98);
+}
+
+.composer textarea:focus-visible {
+  outline: 2px solid rgba(62, 107, 115, 0.35);
+  outline-offset: 1px;
+}
+
+.composer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@keyframes simmerPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(62, 107, 115, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(62, 107, 115, 0);
+  }
+}
+
+@media (max-width: 700px) {
+  .chat-shell {
+    min-height: calc(100vh - 120px);
+  }
+
+  .chat-header {
+    padding: 18px 16px 14px;
+  }
+
+  .chat-history {
+    padding: 14px 16px;
+  }
+
+  .composer {
+    padding: 12px 16px 16px;
+  }
+
+  .user-turn {
+    max-width: 100%;
+  }
+}
+</style>

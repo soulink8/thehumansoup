@@ -25,6 +25,7 @@ declare module 'vue-router/auto-routes' {
     '/kitchen/': RouteRecordInfo<'/kitchen/', '/kitchen', Record<never, never>, Record<never, never>>,
     '/kitchen/add': RouteRecordInfo<'/kitchen/add', '/kitchen/add', Record<never, never>, Record<never, never>>,
     '/kitchen/make': RouteRecordInfo<'/kitchen/make', '/kitchen/make', Record<never, never>, Record<never, never>>,
+    '/kitchen/make-legacy': RouteRecordInfo<'/kitchen/make-legacy', '/kitchen/make-legacy', Record<never, never>, Record<never, never>>,
     '/login': RouteRecordInfo<'/login', '/login', Record<never, never>, Record<never, never>>,
     '/make': RouteRecordInfo<'/make', '/make', Record<never, never>, Record<never, never>>,
     '/soups/[name]': RouteRecordInfo<'/soups/[name]', '/soups/:name', { name: ParamValue<true> }, { name: ParamValue<false> }>,
